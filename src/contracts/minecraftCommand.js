@@ -6,6 +6,7 @@ class minecraftCommand {
     this.minecraft = minecraft;
     this.officer = false;
     this.config = minecraft.config;
+    this.hypixel = minecraft.hypixel;
   }
 
   /**

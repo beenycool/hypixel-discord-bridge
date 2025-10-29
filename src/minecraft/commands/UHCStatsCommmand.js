@@ -1,5 +1,4 @@
 const minecraftCommand = require("../../contracts/minecraftCommand.js");
-const hypixel = require("../../contracts/API/HypixelRebornAPI.js");
 const { formatError } = require("../../contracts/helperFunctions.js");
 
 class UHCStatsCommand extends minecraftCommand {
@@ -27,7 +26,7 @@ class UHCStatsCommand extends minecraftCommand {
     try {
       player = this.getArgs(message)[0] || player;
 
-      const hypixelPlayer = await hypixel.getPlayer(player);
+      const hypixelPlayer = await this.hypixel.getPlayer(player);
       if (hypixelPlayer.stats?.uhc === undefined) {
         return this.send("This player has no UHC stats.");
       }

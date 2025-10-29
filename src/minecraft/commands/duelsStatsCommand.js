@@ -1,6 +1,5 @@
 const { formatNumber, formatError } = require("../../contracts/helperFunctions.js");
 const minecraftCommand = require("../../contracts/minecraftCommand.js");
-const hypixel = require("../../contracts/API/HypixelRebornAPI.js");
 
 class DuelsStatsCommand extends minecraftCommand {
   /** @param {import("minecraft-protocol").Client} minecraft */
@@ -51,7 +50,7 @@ class DuelsStatsCommand extends minecraftCommand {
         }
       }
 
-      const hypixelPlayer = await hypixel.getPlayer(player);
+      const hypixelPlayer = await this.hypixel.getPlayer(player);
       if (!hypixelPlayer) {
         throw "Player not found.";
       }

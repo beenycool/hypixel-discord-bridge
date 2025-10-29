@@ -1,6 +1,5 @@
 const minecraftCommand = require("../../contracts/minecraftCommand.js");
 const { formatError } = require("../../contracts/helperFunctions.js");
-const hypixel = require("../../contracts/API/HypixelRebornAPI.js");
 const { getUUID } = require("../../contracts/API/mowojangAPI.js");
 
 class GuildExperienceCommand extends minecraftCommand {
@@ -28,7 +27,7 @@ class GuildExperienceCommand extends minecraftCommand {
     player = this.getArgs(message)[0] || player;
 
     try {
-      const [uuid, guild] = await Promise.all([getUUID(player), hypixel.getGuild("player", player, { noCaching: false })]);
+      const [uuid, guild] = await Promise.all([getUUID(player), this.hypixel.getGuild("player", player, { noCaching: false })]);
 
       /** @type {import('hypixel-api-reborn').Guild['members']} */
       const guildMembers = guild.members;

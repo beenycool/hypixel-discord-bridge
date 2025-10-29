@@ -1,8 +1,9 @@
 const { Embed, ErrorEmbed, SuccessEmbed } = require("../../contracts/embedHandler.js");
 const HypixelDiscordChatBridgeError = require("../../contracts/errorHandler.js");
-const hypixelRebornAPI = require("../../contracts/API/HypixelRebornAPI.js");
+const { getHypixelClient } = require("../../contracts/API/HypixelRebornAPI.js");
 const { formatError } = require("../../contracts/helperFunctions.js");
 const updateRolesCommand = require("./updateCommand.js");
+const BridgeRegistry = require("../../BridgeRegistry.js");
 const { writeFileSync, readFileSync } = require("fs");
 const config = require("../../../config.json");
 
@@ -22,6 +23,17 @@ module.exports = {
 
   execute: async (interaction, extra = {}) => {
     try {
+      const bridge = BridgeRegistry.getBridgeByGuildId(interaction.guildId) ?? interaction.client?.bridge ?? BridgeRegistry.getDefaultBridge();
+      if (!bridge) {
+        throw new HypixelDiscordChatBridgeError("Unable to locate a bridge for this guild.");
+      }
+
+      const hypixel = getHypixelClient({ bridge });
+      const guild = bridge.discord?.stateHandler?.guild ?? global.guild;
+      if (!guild) {
+        throw new HypixelDiscordChatBridgeError("Discord guild is not ready. Please try again later.");
+      }
+
       const linkedData = readFileSync("data/linked.json");
       if (!linkedData) {
         throw new HypixelDiscordChatBridgeError("The linked data file does not exist. Please contact an administrator.");
@@ -38,7 +50,7 @@ module.exports = {
       }
 
       const username = interaction.options.getString("username");
-      const { socialMedia, nickname, uuid } = await hypixelRebornAPI.getPlayer(username);
+      const { socialMedia, nickname, uuid } = await hypixel.getPlayer(username);
 
       const discordUsername = socialMedia.find((media) => media.id === "DISCORD")?.link;
       if (!discordUsername) {

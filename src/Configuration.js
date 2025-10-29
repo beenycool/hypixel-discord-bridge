@@ -69,7 +69,7 @@ function ensureBridgeArray(configuration, example) {
 
 ensureBridgeArray(config, exampleConfig);
 
-const { bridges, ...exampleRest } = exampleConfig;
+const { bridges: _unusedBridges, ...exampleRest } = exampleConfig;
 
 for (const [key, value] of Object.entries(exampleRest)) {
   if (config[key] === undefined) {
@@ -81,10 +81,6 @@ for (const [key, value] of Object.entries(exampleRest)) {
     applyDefaults(config[key], value, [key]);
   }
 }
-
-config.bridges.forEach((bridge, index) => {
-  applyDefaults(bridge, exampleConfig.bridges[0], ["bridges", index]);
-});
 
 const primaryBridge = config.bridges[0];
 config.minecraft = clone(primaryBridge.minecraft ?? {});

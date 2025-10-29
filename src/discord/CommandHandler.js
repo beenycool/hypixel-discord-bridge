@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/extensions
-const { Routes } = require("discord-api-types/v9");
+const { Routes } = require("discord-api-types/v10");
 const { REST } = require("@discordjs/rest");
 const fs = require("fs");
 
@@ -14,15 +14,17 @@ class CommandHandler {
 
     for (const file of commandFiles) {
       const command = require(`./commands/${file}`);
-      if (command.inactivityCommand === true && this.globalConfig.verification.inactivity.enabled == false) {
+      const verificationConfig = this.config.verification ?? this.globalConfig.verification ?? {};
+      if (command.inactivityCommand === true && verificationConfig?.inactivity?.enabled === false) {
         continue;
       }
 
-      if (command.verificationCommand === true && this.globalConfig.verification.enabled === false) {
+      if (command.verificationCommand === true && verificationConfig?.enabled === false) {
         continue;
       }
 
-      if (command.channelsCommand === true && this.globalConfig.statsChannels.enabled === false) {
+      const statsChannelsConfig = this.config.statsChannels ?? this.globalConfig.statsChannels;
+      if (command.channelsCommand === true && statsChannelsConfig?.enabled === false) {
         continue;
       }
 
@@ -31,11 +33,9 @@ class CommandHandler {
 
     const rest = new REST({ version: "10" }).setToken(this.config.discord.bot.token);
 
-    const clientID = Buffer.from(this.config.discord.bot.token.split(".")[0], "base64").toString("ascii");
+    const clientID = this.config.discord.bot.applicationId;
 
-    rest
-      .put(Routes.applicationGuildCommands(clientID, this.config.discord.bot.serverID), { body: commands })
-      .catch((e) => console.error(e));
+    rest.put(Routes.applicationGuildCommands(clientID, this.config.discord.bot.serverID), { body: commands }).catch((e) => console.error(e));
   }
 }
 

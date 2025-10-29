@@ -6,6 +6,7 @@ const ChatHandler = require("./handlers/ChatHandler.js");
 const CommandHandler = require("./CommandHandler.js");
 const mineflayer = require("mineflayer");
 const Filter = require("bad-words");
+const { getHypixelClientForConfig } = require("../contracts/API/HypixelRebornAPI.js");
 
 class MinecraftManager extends CommunicationBridge {
   constructor(bridge) {
@@ -17,6 +18,7 @@ class MinecraftManager extends CommunicationBridge {
     this.minecraftConfig = this.config.minecraft;
     this.discordConfig = this.config.discord;
     this.webConfig = this.config.web;
+    this.hypixel = getHypixelClientForConfig(this.config);
 
     this.filter = new Filter();
     const filteredWords = this.discordConfig.other?.filterWords ?? [];
@@ -31,6 +33,13 @@ class MinecraftManager extends CommunicationBridge {
 
   connect() {
     this.bot = this.createBotConnection();
+    this.context.bot = this.bot;
+    this.context.hypixel = this.hypixel;
+    globalThis.bots ??= new Map();
+    globalThis.bots.set(this.context.id, this.bot);
+    if (!globalThis.bot) {
+      globalThis.bot = this.bot;
+    }
 
     this.errorHandler.registerEvents(this.bot);
     this.stateHandler.registerEvents(this.bot);
@@ -52,7 +61,7 @@ class MinecraftManager extends CommunicationBridge {
       version: "1.8.9",
       viewDistance: "tiny",
       chatLengthLimit: 256,
-      profilesFolder: "./auth-cache"
+      profilesFolder: `./auth-cache/${this.context.id}`
     });
   }
 
@@ -62,14 +71,11 @@ class MinecraftManager extends CommunicationBridge {
       return;
     }
 
-    if (
-      channel === this.discordConfig.channels.debugChannel &&
-      this.discordConfig.channels.debugMode === true
-    ) {
+    if (channel === this.discordConfig.channels.debugChannel && this.discordConfig.channels.debugMode === true) {
       return this.bot.chat(message);
     }
 
-    if (this.discordConfig.other.filterMessages) {
+    if (this.discordConfig.other?.filterMessages) {
       try {
         message = this.filter.clean(message);
         username = this.filter.clean(username);
@@ -78,9 +84,9 @@ class MinecraftManager extends CommunicationBridge {
       }
     }
 
-    if (this.discordConfig.other.stripEmojisFromUsernames) {
+    if (this.discordConfig.other?.stripEmojisFromUsernames) {
       try {
-        username = username.replace(/:[\w\-_]+:/g, '');
+        username = username.replace(/:[\w\-_]+:/g, "");
       } catch (error) {
         // Do nothing
       }
@@ -98,10 +104,7 @@ class MinecraftManager extends CommunicationBridge {
     const messageListener = (receivedMessage) => {
       receivedMessage = receivedMessage.toString();
 
-      if (
-        receivedMessage.trim().includes(message.trim()) &&
-        (this.chatHandler.isGuildMessage(receivedMessage) || this.chatHandler.isOfficerMessage(receivedMessage))
-      ) {
+      if (receivedMessage.trim().includes(message.trim()) && (this.chatHandler.isGuildMessage(receivedMessage) || this.chatHandler.isOfficerMessage(receivedMessage))) {
         this.bot.removeListener("message", messageListener);
         successfullySent = true;
       }
@@ -110,6 +113,7 @@ class MinecraftManager extends CommunicationBridge {
     this.bot.on("message", messageListener);
     this.bot.chat(`${chat} ${message}`);
 
+    const ackMs = this.discordConfig.other?.ackTimeoutMs ?? 1000;
     setTimeout(() => {
       this.bot.removeListener("message", messageListener);
       if (successfullySent === true) {
@@ -117,7 +121,7 @@ class MinecraftManager extends CommunicationBridge {
       }
 
       discord.react("❌");
-    }, 500);
+    }, ackMs);
   }
 }
 

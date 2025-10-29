@@ -20,21 +20,29 @@ async function uploadImage(image, bridgeId) {
 
   try {
     const bridge = BridgeRegistry.getBridge(bridgeId) ?? BridgeRegistry.getDefaultBridge();
-    const client = bridge?.discord?.client;
-    const channelId = bridge?.config?.discord?.channels?.guildChatChannel;
-    if (!client || !channelId) {
-      return;
+    if (!bridge) {
+      throw new Error("Unable to resolve a bridge for image upload.");
     }
 
-    /** @type {import('discord.js').Client} */
-    // @ts-ignore
-    await client.channels.cache.get(channelId).send({
+    const client = bridge.discord?.client;
+    const channelId = bridge.config?.discord?.channels?.guildChatChannel;
+    if (!client || !channelId) {
+      throw new Error(`Unable to upload image: Discord client or channel not configured for bridge ${bridgeId ?? bridge.id}`);
+    }
+
+    const channel = client.channels.cache.get(channelId);
+    if (!channel) {
+      throw new Error(`Unable to upload image: Channel ${channelId} not found for bridge ${bridge.id}`);
+    }
+
+    await channel.send({
       files: [image]
     });
 
     console.log("Image uploaded to Discord channel.");
   } catch (error) {
     console.log(error);
+    throw error;
   }
 }
 

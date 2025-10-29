@@ -41,6 +41,16 @@ class Application {
     delete require.cache[require.resolve("../config.json")];
     this.config = require("../config.json");
 
+    if (Array.isArray(this.bridges)) {
+      this.bridges.forEach((bridge) => {
+        try {
+          BridgeRegistry.unregisterBridge(bridge);
+        } catch (error) {
+          console.warn("Failed to unregister bridge during reload:", error);
+        }
+      });
+    }
+
     this.bridges = this.config.bridges.map((bridgeConfig, index) => new BridgeInstance(this, bridgeConfig, index));
   }
 

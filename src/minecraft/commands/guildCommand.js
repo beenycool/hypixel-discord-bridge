@@ -1,5 +1,4 @@
 const minecraftCommand = require("../../contracts/minecraftCommand.js");
-const hypixel = require("../../contracts/API/HypixelRebornAPI.js");
 const { formatNumber, formatError, titleCase } = require("../../contracts/helperFunctions.js");
 
 class GuildInformationCommand extends minecraftCommand {
@@ -29,7 +28,7 @@ class GuildInformationCommand extends minecraftCommand {
         .map((arg) => titleCase(arg))
         .join(" ");
 
-      const guild = await hypixel.getGuild("name", guildName, { noCaching: false });
+      const guild = await this.hypixel.getGuild("name", guildName, { noCaching: false });
       if (!guild) {
         return this.send(`Guild ${guildName} not found.`);
       }

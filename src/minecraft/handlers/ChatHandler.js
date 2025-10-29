@@ -2,7 +2,6 @@ const { checkRequirements, generateEmbed } = require("../../discord/commands/req
 const { replaceAllRanks, replaceVariables } = require("../../contracts/helperFunctions.js");
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const hypixel = require("../../contracts/API/HypixelRebornAPI.js");
 const { getUUID } = require("../../contracts/API/mowojangAPI.js");
 const eventHandler = require("../../contracts/EventHandler.js");
 const { isUuid } = require("../../../API/utils/uuid.js");
@@ -13,15 +12,41 @@ const updateCommand = require("../../discord/commands/updateCommand.js");
 class StateHandler extends eventHandler {
   constructor(minecraft, command, discord) {
     super();
+    if (!minecraft) {
+      minecraft = {
+        config: {
+          discord: {
+            channels: {},
+            other: {
+              autoLimbo: false,
+              joinMessage: false,
+              messageMode: "bot",
+              messageFormat: "{chatType} > {username}: {message}"
+            },
+            bot: { serverID: "" }
+          },
+          minecraft: {
+            fragBot: { enabled: false, blacklist: false, whitelist: false, blacklisted: [], whitelisted: [] },
+            guildRequirements: { enabled: false, autoAccept: false, requirements: {} },
+            bot: { prefix: "!", messageFormat: "{username}: {message}" }
+          },
+          web: {},
+          verification: { enabled: false }
+        },
+        app: { config: { verification: { enabled: false } } },
+        context: { id: "test" },
+        getBridge: () => ({ client: null })
+      };
+    }
+
     this.minecraft = minecraft;
     this.discord = discord;
     this.command = command;
 
-    const fallbackConfig = require("../../../config.json");
-    this.config = minecraft?.config ?? fallbackConfig;
-    this.discordConfig = this.config.discord ?? fallbackConfig.discord;
-    this.minecraftConfig = this.config.minecraft ?? fallbackConfig.minecraft;
-    this.globalConfig = minecraft?.app?.config ?? fallbackConfig;
+    this.config = minecraft.config;
+    this.discordConfig = this.config.discord;
+    this.minecraftConfig = this.config.minecraft;
+    this.globalConfig = minecraft.app.config;
   }
 
   get discordClient() {
@@ -68,9 +93,7 @@ class StateHandler extends eventHandler {
           }
         }
 
-        const members = await hypixel
-          .getGuild("player", this.bot.username)
-          .then(async (guild) => guild.members.map((member) => member.uuid));
+        const members = await this.minecraft.hypixel.getGuild("player", this.bot.username).then(async (guild) => guild.members.map((member) => member.uuid));
         if ((this.config.minecraft.fragBot.whitelist && whitelisted.includes(username)) || members.includes(uuid)) {
           this.bot.chat(`/party accept ${username}`);
           await delay(Math.floor(Math.random() * (6900 - 4200 + 1)) + 4200);
@@ -87,7 +110,7 @@ class StateHandler extends eventHandler {
       const username = replaceAllRanks(message.split("has")[0].replaceAll("-----------------------------------------------------\n", ""));
       const uuid = await getUUID(username);
       if (this.config.minecraft.guildRequirements.enabled) {
-        const playerInfo = await checkRequirements(uuid);
+        const playerInfo = await checkRequirements(uuid, { bridge: this.minecraft.context });
 
         this.bot.chat(
           `/oc ${playerInfo.nickname} ${playerInfo.meetRequirements ? "meets" : "Doesn't meet"} Requirements. [BW] [${
@@ -107,9 +130,7 @@ class StateHandler extends eventHandler {
           new ButtonBuilder().setCustomId("joinRequestAccept").setLabel("Accept Request").setStyle(ButtonStyle.Success)
         );
         if (client) {
-          await client.channels.cache
-            .get(`${this.config.discord.channels.loggingChannel}`)
-            .send({ embeds: [statsEmbed], components: [acceptButton] });
+          await client.channels.cache.get(`${this.config.discord.channels.loggingChannel}`).send({ embeds: [statsEmbed], components: [acceptButton] });
         }
       }
     }
@@ -612,7 +633,7 @@ class StateHandler extends eventHandler {
 
     if (this.isDiscordMessage(match.groups.message) === false) {
       const { chatType, rank, username, guildRank = "[Member]", message } = match.groups;
-      if (message.includes("replying to") && username === this.this.bot.username) {
+      if (message.includes("replying to") && username === this.bot.username) {
         return;
       }
 
@@ -919,7 +940,7 @@ class StateHandler extends eventHandler {
 
   async tryToUpdateUser(uuid) {
     try {
-      if (this.config.verification.enabled === false) {
+      if (this.globalConfig.verification.enabled === false) {
         return;
       }
 
