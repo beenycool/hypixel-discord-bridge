@@ -1,21 +1,21 @@
-const config = require("../../../config.json");
 const { unemojify } = require("node-emoji");
 
 class MessageHandler {
   constructor(discord, command) {
     this.discord = discord;
     this.command = command;
+    this.config = discord.config;
   }
 
   async onMessage(message) {
     try {
-      if (message.author.id === client.user.id || !this.shouldBroadcastMessage(message)) {
+      if (message.author.id === this.discord.client.user.id || !this.shouldBroadcastMessage(message)) {
         return;
       }
 
       const discordUser = await message.guild.members.fetch(message.author.id);
       const memberRoles = discordUser.roles.cache.map((role) => role.id);
-      if (memberRoles.some((role) => config.discord.commands.blacklistRoles.includes(role))) {
+      if (memberRoles.some((role) => this.config.discord.commands.blacklistRoles.includes(role))) {
         return;
       }
 
@@ -82,7 +82,7 @@ class MessageHandler {
       const discUser = await message.guild.members.fetch(message.mentions.repliedUser.id);
       const mentionedUserName = discUser.nickname ?? message.mentions.repliedUser.globalName;
 
-      if (config.discord.other.messageMode === "bot" && reference.embed !== null) {
+      if (this.config.discord.other.messageMode === "bot" && reference.embed !== null) {
         const name = reference.embeds[0]?.author?.name;
         if (name === undefined) {
           return mentionedUserName;
@@ -91,7 +91,7 @@ class MessageHandler {
         return name;
       }
 
-      if (config.discord.other.messageMode === "minecraft" && reference.attachments !== null) {
+      if (this.config.discord.other.messageMode === "minecraft" && reference.attachments !== null) {
         const name = reference.attachments.values()?.next()?.value?.name;
         if (name === undefined) {
           return mentionedUserName;
@@ -100,7 +100,7 @@ class MessageHandler {
         return name.split(".")[0];
       }
 
-      if (config.discord.other.messageMode === "webhook") {
+      if (this.config.discord.other.messageMode === "webhook") {
         if (reference.author.username === undefined) {
           return mentionedUserName;
         }
@@ -176,9 +176,14 @@ class MessageHandler {
   }
 
   shouldBroadcastMessage(message) {
-    const isBot = message.author.bot && config.discord.channels.allowedBots.includes(message.author.id) === false ? true : false;
+    const isBot =
+      message.author.bot && this.config.discord.channels.allowedBots.includes(message.author.id) === false ? true : false;
     const isValid = !isBot && (message.content.length > 0 || message.attachments.size > 0 || message.stickers.size > 0);
-    const validChannelIds = [config.discord.channels.officerChannel, config.discord.channels.guildChatChannel, config.discord.channels.debugChannel];
+    const validChannelIds = [
+      this.config.discord.channels.officerChannel,
+      this.config.discord.channels.guildChatChannel,
+      this.config.discord.channels.debugChannel
+    ];
 
     return isValid && validChannelIds.includes(message.channel.id);
   }

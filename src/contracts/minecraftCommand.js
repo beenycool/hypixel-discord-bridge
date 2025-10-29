@@ -1,11 +1,11 @@
 const { splitMessage, delay, generateID } = require("./helperFunctions.js");
-const config = require("../../config.json");
 
 class minecraftCommand {
   /** @param {import("minecraft-protocol").Client} minecraft */
   constructor(minecraft) {
     this.minecraft = minecraft;
     this.officer = false;
+    this.config = minecraft.config;
   }
 
   /**
@@ -28,7 +28,7 @@ class minecraftCommand {
    * @param {boolean} isErrorMessage - Flag to prevent recursive error messages
    */
   async send(message, maxRetries = 5, isErrorMessage = false) {
-    if (!bot?._client?.chat) {
+    if (!this.minecraft.bot?._client?.chat) {
       return;
     }
 
@@ -57,22 +57,22 @@ class minecraftCommand {
               const msgStr = msg.toString();
 
               if (msgStr.includes("You are sending commands too fast!") && !msgStr.includes(":")) {
-                bot.removeListener("message", listener);
+                this.minecraft.bot.removeListener("message", listener);
                 reject(new Error("rate-limited"));
               }
 
               if (msgStr.includes("You cannot say the same message twice!") && !msgStr.includes(":")) {
-                bot.removeListener("message", listener);
+                this.minecraft.bot.removeListener("message", listener);
                 reject(new Error("duplicate-message"));
               }
             };
 
-            bot.once("message", listener);
+            this.minecraft.bot.once("message", listener);
 
-            bot.chat(`/${this.officer ? "oc" : "gc"} ${message}`);
+            this.minecraft.bot.chat(`/${this.officer ? "oc" : "gc"} ${message}`);
 
             setTimeout(() => {
-              bot.removeListener("message", listener);
+              this.minecraft.bot.removeListener("message", listener);
               resolve();
             }, 500);
           })
@@ -105,7 +105,7 @@ class minecraftCommand {
           // @ts-ignore
           if (error.message === "duplicate-message") {
             await delay(100);
-            const randomId = generateID(config.minecraft.bot.messageRepeatBypassLength);
+            const randomId = generateID(this.config.minecraft.bot.messageRepeatBypassLength);
             const maxLength = 256 - randomId.length - 3; // -3 for space
             message = `${message.substring(0, maxLength)} - ${randomId}`;
             continue;

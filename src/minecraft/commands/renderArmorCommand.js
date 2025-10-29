@@ -58,7 +58,7 @@ class ArmorCommand extends minecraftCommand {
           continue;
         }
 
-        await uploadImage(renderedItem);
+        await uploadImage(renderedItem, this.minecraft.context.id);
       }
 
       this.send(`${username}'s armor has been rendered, check Discord for the images.`);

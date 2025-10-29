@@ -66,7 +66,7 @@ class RenderCommand extends minecraftCommand {
         return this.send(`Item at slot ${itemNumber} is not renderable.`);
       }
 
-      await uploadImage(renderedItem);
+      await uploadImage(renderedItem, this.minecraft.context.id);
 
       this.send(`${username}'s item at slot ${itemNumber} can be found in Discord Channel.`);
     } catch (error) {

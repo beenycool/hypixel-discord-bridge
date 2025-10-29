@@ -1,5 +1,4 @@
 const { Collection } = require("discord.js");
-const config = require("../../config.json");
 const axios = require("axios");
 const fs = require("fs");
 
@@ -8,7 +7,8 @@ class CommandHandler {
   constructor(minecraft) {
     this.minecraft = minecraft;
 
-    this.prefix = config.minecraft.bot.prefix;
+    this.config = minecraft.config;
+    this.prefix = this.config.minecraft.bot.prefix;
     this.commands = new Collection();
 
     const commandFiles = fs.readdirSync("./src/minecraft/commands").filter((file) => file.endsWith(".js"));
@@ -21,7 +21,7 @@ class CommandHandler {
 
   handle(player, message, officer) {
     if (message.startsWith(this.prefix)) {
-      if (config.minecraft.commands.normal === false) {
+      if (this.config.minecraft.commands.normal === false) {
         return;
       }
 
@@ -37,7 +37,7 @@ class CommandHandler {
       command.officer = officer;
       command.onCommand(player, message);
     } else if (message.startsWith("-") && message.startsWith("- ") === false) {
-      if (config.minecraft.commands.soopy === false || message.at(1) === "-") {
+      if (this.config.minecraft.commands.soopy === false || message.at(1) === "-") {
         return;
       }
 
@@ -48,7 +48,7 @@ class CommandHandler {
 
       const chat = officer ? "oc" : "gc";
 
-      bot.chat(`/${chat} [SOOPY V2] ${message}`);
+      this.minecraft.bot.chat(`/${chat} [SOOPY V2] ${message}`);
 
       console.minecraft(`${player} - [${command}] ${message}`);
       (async () => {
@@ -57,12 +57,12 @@ class CommandHandler {
           const response = await axios.get(URI);
 
           if (response?.data?.msg === undefined) {
-            return bot.chat(`/${chat} [SOOPY V2] An error occured while running the command`);
+            return this.minecraft.bot.chat(`/${chat} [SOOPY V2] An error occured while running the command`);
           }
 
-          bot.chat(`/${chat} [SOOPY V2] ${response.data.msg}`);
+          this.minecraft.bot.chat(`/${chat} [SOOPY V2] ${response.data.msg}`);
         } catch (e) {
-          bot.chat(`/${chat} [SOOPY V2] ${e.cause ?? e.message ?? "Unknown error"}`);
+          this.minecraft.bot.chat(`/${chat} [SOOPY V2] ${e.cause ?? e.message ?? "Unknown error"}`);
         }
       })();
     }

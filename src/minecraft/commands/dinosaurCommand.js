@@ -31,7 +31,7 @@ class DinosaurCommand extends minecraftCommand {
       }
 
       const buffer = await get(data.url, { responseType: "arraybuffer" });
-      await uploadImage(buffer.data);
+      await uploadImage(buffer.data, this.minecraft.context.id);
 
       this.send("Dinosaur image uploaded to Discord channel.");
     } catch (error) {

@@ -7,7 +7,6 @@ const { getUUID } = require("../../contracts/API/mowojangAPI.js");
 const eventHandler = require("../../contracts/EventHandler.js");
 const { isUuid } = require("../../../API/utils/uuid.js");
 const messages = require("../../../messages.json");
-const config = require("../../../config.json");
 const { readFileSync } = require("fs");
 const updateCommand = require("../../discord/commands/updateCommand.js");
 
@@ -17,6 +16,16 @@ class StateHandler extends eventHandler {
     this.minecraft = minecraft;
     this.discord = discord;
     this.command = command;
+
+    const fallbackConfig = require("../../../config.json");
+    this.config = minecraft?.config ?? fallbackConfig;
+    this.discordConfig = this.config.discord ?? fallbackConfig.discord;
+    this.minecraftConfig = this.config.minecraft ?? fallbackConfig.minecraft;
+    this.globalConfig = minecraft?.app?.config ?? fallbackConfig;
+  }
+
+  get discordClient() {
+    return this.minecraft.getBridge()?.client;
   }
 
   registerEvents(bot) {
@@ -27,13 +36,14 @@ class StateHandler extends eventHandler {
   async onMessage(event) {
     const message = event.toString();
     const colouredMessage = event.toMotd();
+    const client = this.discordClient;
 
     // NOTE: fixes "100/100❤     100/100✎ Mana" spam in the debug channel
     if (message.includes("✎ Mana") && message.includes("❤") && message.includes("/")) {
       return;
     }
 
-    if (config.discord.channels.debugMode === true) {
+    if (this.config.discord.channels.debugMode === true) {
       this.minecraft.broadcastMessage({
         fullMessage: colouredMessage,
         message: message,
@@ -41,43 +51,45 @@ class StateHandler extends eventHandler {
       });
     }
 
-    if (this.isLobbyJoinMessage(message) && config.discord.other.autoLimbo === true) {
-      return bot.chat("/limbo");
+    if (this.isLobbyJoinMessage(message) && this.config.discord.other.autoLimbo === true) {
+      return this.bot.chat("/limbo");
     }
 
-    if (this.isPartyMessage(message) && config.minecraft.fragBot.enabled === true) {
+    if (this.isPartyMessage(message) && this.config.minecraft.fragBot.enabled === true) {
       const username = message.substr(54).startsWith("[") ? message.substr(54).split(" ")[1].trim() : message.substr(54).split(" ")[0].trim();
 
-      const { blacklist, blacklisted, whitelist, whitelisted } = config.minecraft.fragBot;
+      const { blacklist, blacklisted, whitelist, whitelisted } = this.config.minecraft.fragBot;
       if (blacklist || whitelist) {
         const uuid = await getUUID(username);
 
-        if (config.minecraft.fragBot.blacklist === true) {
+        if (this.config.minecraft.fragBot.blacklist === true) {
           if (blacklisted.includes(username) || blacklisted.includes(uuid)) {
             return;
           }
         }
 
-        const members = await hypixel.getGuild("player", bot.username).then(async (guild) => guild.members.map((member) => member.uuid));
-        if ((config.minecraft.fragBot.whitelist && whitelisted.includes(username)) || members.includes(uuid)) {
-          bot.chat(`/party accept ${username}`);
+        const members = await hypixel
+          .getGuild("player", this.bot.username)
+          .then(async (guild) => guild.members.map((member) => member.uuid));
+        if ((this.config.minecraft.fragBot.whitelist && whitelisted.includes(username)) || members.includes(uuid)) {
+          this.bot.chat(`/party accept ${username}`);
           await delay(Math.floor(Math.random() * (6900 - 4200 + 1)) + 4200);
-          bot.chat(`/party leave`);
+          this.bot.chat(`/party leave`);
         }
       } else {
-        bot.chat(`/party accept ${username}`);
+        this.bot.chat(`/party accept ${username}`);
         await delay(Math.floor(Math.random() * (6900 - 4200 + 1)) + 4200);
-        bot.chat(`/party leave`);
+        this.bot.chat(`/party leave`);
       }
     }
 
     if (this.isRequestMessage(message)) {
       const username = replaceAllRanks(message.split("has")[0].replaceAll("-----------------------------------------------------\n", ""));
       const uuid = await getUUID(username);
-      if (config.minecraft.guildRequirements.enabled) {
+      if (this.config.minecraft.guildRequirements.enabled) {
         const playerInfo = await checkRequirements(uuid);
 
-        bot.chat(
+        this.bot.chat(
           `/oc ${playerInfo.nickname} ${playerInfo.meetRequirements ? "meets" : "Doesn't meet"} Requirements. [BW] [${
             playerInfo.bwLevel
           }✫] FKDR: ${playerInfo.bwFKDR} | [SW] [${playerInfo.swLevel}✫] KDR: ${playerInfo.swKDR} | [Duels] Wins: ${
@@ -86,20 +98,24 @@ class StateHandler extends eventHandler {
         );
         await delay(1000);
 
-        if (playerInfo.meetRequirements === true && config.minecraft.guildRequirements.autoAccept) {
-          bot.chat(`/guild accept ${username}`);
+        if (playerInfo.meetRequirements === true && this.config.minecraft.guildRequirements.autoAccept) {
+          this.bot.chat(`/guild accept ${username}`);
         }
 
         const statsEmbed = generateEmbed(playerInfo);
         const acceptButton = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId("joinRequestAccept").setLabel("Accept Request").setStyle(ButtonStyle.Success)
         );
-        await client.channels.cache.get(`${config.discord.channels.loggingChannel}`).send({ embeds: [statsEmbed], components: [acceptButton] });
+        if (client) {
+          await client.channels.cache
+            .get(`${this.config.discord.channels.loggingChannel}`)
+            .send({ embeds: [statsEmbed], components: [acceptButton] });
+        }
       }
     }
 
     if (this.isLoginMessage(message)) {
-      if (config.discord.other.joinMessage === true) {
+      if (this.config.discord.other.joinMessage === true) {
         const username = message.split(">")[1].trim().split("joined.")[0].trim();
         return this.minecraft.broadcastPlayerToggle({
           fullMessage: colouredMessage,
@@ -112,7 +128,7 @@ class StateHandler extends eventHandler {
     }
 
     if (this.isLogoutMessage(message)) {
-      if (config.discord.other.joinMessage === true) {
+      if (this.config.discord.other.joinMessage === true) {
         const username = message.split(">")[1].trim().split("left.")[0].trim();
         return this.minecraft.broadcastPlayerToggle({
           fullMessage: colouredMessage,
@@ -129,7 +145,7 @@ class StateHandler extends eventHandler {
       setTimeout(() => this.tryToUpdateUser(username), 15000);
 
       await delay(1000);
-      bot.chat(`/gc ${replaceVariables(messages.guildJoinMessage, { prefix: config.minecraft.bot.prefix })} | by @duckysolucky`);
+      this.bot.chat(`/gc ${replaceVariables(messages.guildJoinMessage, { prefix: this.config.minecraft.bot.prefix })} | by @duckysolucky`);
 
       const broadcastMessage = {
         message: replaceVariables(messages.joinMessage, { username }),
@@ -251,7 +267,11 @@ class StateHandler extends eventHandler {
     }
 
     if (this.isRepeatMessage(message)) {
-      return client.channels.cache.get(config.discord.channels.guildChatChannel).send({
+      if (!client) {
+        return;
+      }
+
+      return client.channels.cache.get(this.config.discord.channels.guildChatChannel).send({
         embeds: [
           {
             color: 15548997,
@@ -580,11 +600,11 @@ class StateHandler extends eventHandler {
     }*/
 
     const regex =
-      config.discord.other.messageMode === "minecraft"
+      this.config.discord.other.messageMode === "minecraft"
         ? /^(?<chatType>§[0-9a-fA-F](Guild|Officer)) > (?<rank>§[0-9a-fA-F](?:\[.*?\])?)?\s*(?<username>[^§\s]+)\s*(?:(?<guildRank>§[0-9a-fA-F](?:\[.*?\])?))?\s*§f: (?<message>.*)/
         : /^(?<chatType>\w+) > (?:(?:\[(?<rank>[^\]]+)\] )?(?:(?<username>\w+)(?: \[(?<guildRank>[^\]]+)\])?: )?)?(?<message>.+)$/;
 
-    const match = (config.discord.other.messageMode === "minecraft" ? colouredMessage : message).match(regex);
+    const match = (this.config.discord.other.messageMode === "minecraft" ? colouredMessage : message).match(regex);
 
     if (!match) {
       return;
@@ -592,7 +612,7 @@ class StateHandler extends eventHandler {
 
     if (this.isDiscordMessage(match.groups.message) === false) {
       const { chatType, rank, username, guildRank = "[Member]", message } = match.groups;
-      if (message.includes("replying to") && username === this.bot.username) {
+      if (message.includes("replying to") && username === this.this.bot.username) {
         return;
       }
 
@@ -632,7 +652,7 @@ class StateHandler extends eventHandler {
   }
 
   isCommand(message) {
-    const regex = new RegExp(`^(?<prefix>[${config.minecraft.bot.prefix}-])(?<command>\\S+)(?:\\s+(?<args>.+))?\\s*$`);
+    const regex = new RegExp(`^(?<prefix>[${this.config.minecraft.bot.prefix}-])(?<command>\\S+)(?:\\s+(?<args>.+))?\\s*$`);
 
     if (regex.test(message) === false) {
       const getMessage = /^(?<username>(?!https?:\/\/)[^\s»:>]+)\s*[»:>]\s*(?<message>.*)/;
@@ -687,7 +707,7 @@ class StateHandler extends eventHandler {
   }
 
   isMessageFromBot(username) {
-    return bot.username === username;
+    return this.bot.username === username;
   }
 
   isAlreadyBlacklistedMessage(message) {
@@ -899,7 +919,7 @@ class StateHandler extends eventHandler {
 
   async tryToUpdateUser(uuid) {
     try {
-      if (config.verification.enabled === false) {
+      if (this.config.verification.enabled === false) {
         return;
       }
 

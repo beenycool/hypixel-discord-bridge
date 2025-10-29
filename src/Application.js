@@ -1,7 +1,31 @@
 const MinecraftManager = require("./minecraft/MinecraftManager.js");
 const { existsSync, mkdirSync, writeFileSync } = require("fs");
 const DiscordManager = require("./discord/DiscordManager.js");
-const webManager = require("./web/WebsiteManager.js");
+const WebsiteManager = require("./web/WebsiteManager.js");
+const BridgeRegistry = require("./BridgeRegistry.js");
+
+class BridgeInstance {
+  constructor(app, bridgeConfig, index) {
+    this.app = app;
+    this.config = bridgeConfig;
+    this.id = bridgeConfig.id ?? `bridge-${index + 1}`;
+
+    this.minecraft = new MinecraftManager(this);
+    this.discord = new DiscordManager(this);
+    this.web = new WebsiteManager(this);
+
+    this.discord.setBridge(this.minecraft);
+    this.minecraft.setBridge(this.discord);
+
+    BridgeRegistry.registerBridge(this);
+  }
+
+  connect() {
+    this.discord.connect();
+    this.minecraft.connect();
+    this.web.connect();
+  }
+}
 
 class Application {
   constructor() {
@@ -14,18 +38,14 @@ class Application {
   }
 
   async register() {
-    this.discord = new DiscordManager(this);
-    this.minecraft = new MinecraftManager(this);
-    this.web = new webManager(this);
+    delete require.cache[require.resolve("../config.json")];
+    this.config = require("../config.json");
 
-    this.discord.setBridge(this.minecraft);
-    this.minecraft.setBridge(this.discord);
+    this.bridges = this.config.bridges.map((bridgeConfig, index) => new BridgeInstance(this, bridgeConfig, index));
   }
 
   async connect() {
-    this.discord.connect();
-    this.minecraft.connect();
-    this.web.connect();
+    this.bridges.forEach((bridge) => bridge.connect());
   }
 }
 

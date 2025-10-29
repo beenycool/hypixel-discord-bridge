@@ -30,7 +30,7 @@ class KittyCommand extends minecraftCommand {
       }
 
       const buffer = await get(data[0].url, { responseType: "arraybuffer" });
-      await uploadImage(buffer.data);
+      await uploadImage(buffer.data, this.minecraft.context.id);
 
       this.send("Cat image uploaded to Discord channel.");
     } catch (error) {

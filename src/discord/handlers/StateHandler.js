@@ -1,8 +1,7 @@
-const config = require("../../../config.json");
-
 class StateHandler {
   constructor(discord) {
     this.discord = discord;
+    this.config = discord.config;
   }
 
   async onReady() {
@@ -11,17 +10,17 @@ class StateHandler {
       activities: [{ name: `/help | by @duckysolucky` }]
     });
 
-    global.guild = await client.guilds.fetch(config.discord.bot.serverID);
-    console.discord(`Guild ready, successfully fetched ${guild.name}`);
+    this.guild = await this.discord.client.guilds.fetch(this.config.discord.bot.serverID);
+    console.discord(`Guild ready, successfully fetched ${this.guild.name}`);
 
     const channel = await this.getChannel("Guild");
     if (channel === undefined) {
       return console.error(`Channel "Guild" not found!`);
     }
 
-    if (config.verification.inactivity.enabled) require("../other/removeExpiredInactivity.js");
-    if (config.verification.autoRoleUpdater.enabled) require("../other/updateUsers.js");
-    if (config.statsChannels.enabled) require("../other/statsChannels.js");
+    if (this.discord.app.config.verification.inactivity.enabled) require("../other/removeExpiredInactivity.js");
+    if (this.discord.app.config.verification.autoRoleUpdater.enabled) require("../other/updateUsers.js");
+    if (this.discord.app.config.statsChannels.enabled) require("../other/statsChannels.js");
 
     channel.send({
       embeds: [
@@ -57,13 +56,13 @@ class StateHandler {
 
     switch (type.replace(/§[0-9a-fk-or]/g, "").trim()) {
       case "Guild":
-        return this.discord.client.channels.cache.get(config.discord.channels.guildChatChannel);
+        return this.discord.client.channels.cache.get(this.config.discord.channels.guildChatChannel);
       case "Officer":
-        return this.discord.client.channels.cache.get(config.discord.channels.officerChannel);
+        return this.discord.client.channels.cache.get(this.config.discord.channels.officerChannel);
       case "Logger":
-        return this.discord.client.channels.cache.get(config.discord.channels.loggingChannel);
+        return this.discord.client.channels.cache.get(this.config.discord.channels.loggingChannel);
       default:
-        return this.discord.client.channels.cache.get(config.discord.channels.debugChannel);
+        return this.discord.client.channels.cache.get(this.config.discord.channels.debugChannel);
     }
   }
 }

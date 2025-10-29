@@ -50,7 +50,7 @@ class EquipmentCommand extends minecraftCommand {
           return this.send("An error occured while rendering the item.");
         }
 
-        await uploadImage(renderedItem);
+        await uploadImage(renderedItem, this.minecraft.context.id);
       }
 
       this.send(`${username}'s equipment has been rendered, check Discord for the images.`);

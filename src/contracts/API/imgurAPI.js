@@ -1,5 +1,5 @@
-const config = require("../../../config.json");
 // const { ImgurClient } = require("imgur");
+const BridgeRegistry = require("../../BridgeRegistry.js");
 
 // const imgurClient = new ImgurClient({
 //   clientId: config.minecraft.API.imgurAPIkey
@@ -9,7 +9,7 @@ const config = require("../../../config.json");
  * Uploads image to Discord channel
  * @param {Buffer<ArrayBufferLike>} image
  */
-async function uploadImage(image) {
+async function uploadImage(image, bridgeId) {
   // const response = await imgurClient.upload({
   //  image: image
   // });
@@ -19,9 +19,16 @@ async function uploadImage(image) {
   // return response;
 
   try {
+    const bridge = BridgeRegistry.getBridge(bridgeId) ?? BridgeRegistry.getDefaultBridge();
+    const client = bridge?.discord?.client;
+    const channelId = bridge?.config?.discord?.channels?.guildChatChannel;
+    if (!client || !channelId) {
+      return;
+    }
+
     /** @type {import('discord.js').Client} */
     // @ts-ignore
-    await client.channels.cache.get(config.discord.channels.guildChatChannel).send({
+    await client.channels.cache.get(channelId).send({
       files: [image]
     });
 
