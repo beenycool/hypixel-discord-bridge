@@ -1,105 +1,111 @@
 {
-  "minecraft": {
-    "bot": {
-      "prefix": "!",
-      "messageFormat": "{username} » {message}",
-      "messageRepeatBypassLength": 24
-    },
-    "commands": {
-      "normal": true,
-      "soopy": true
-    },
-    "fragBot": {
-      "enabled": true,
-      "whitelist": false,
-      "whitelisted": [],
-      "blacklist": false,
-      "blacklisted": []
-    },
-    "API": {
-      "hypixelAPIkey": "HYPIXEL_API_KEY",
-      "imgurAPIkey": "IMGUR_API_KEY"
-    },
-    "guildRequirements": {
-      "enabled": false,
-      "autoAccept": false,
-      "requirements": {
-        "bedwarsStars": -1,
-        "bedwarsFKDR": -1,
+  "bridges": [
+    {
+      "id": "primary",
+      "minecraft": {
+        "bot": {
+          "prefix": "!",
+          "messageFormat": "{username} » {message}",
+          "messageRepeatBypassLength": 24
+        },
+        "commands": {
+          "normal": true,
+          "soopy": true
+        },
+        "fragBot": {
+          "enabled": true,
+          "whitelist": false,
+          "whitelisted": [],
+          "blacklist": false,
+          "blacklisted": []
+        },
+        "API": {
+          "hypixelAPIkey": "HYPIXEL_API_KEY",
+          "imgurAPIkey": "IMGUR_API_KEY"
+        },
+        "guildRequirements": {
+          "enabled": false,
+          "autoAccept": false,
+          "requirements": {
+            "bedwarsStars": -1,
+            "bedwarsFKDR": -1,
 
-        "skywarsStars": -1,
-        "skywarsKDR": -1,
+            "skywarsStars": -1,
+            "skywarsKDR": -1,
 
-        "duelsWins": -1,
-        "duelsWLR": -1,
+            "duelsWins": -1,
+            "duelsWLR": -1,
 
-        "skyblockLevel": -1
-      }
-    },
-    "skyblockEventsNotifications": {
-      "enabled": true,
-      "notifiers": {
-        "BANK_INTEREST": true,
-        "DARK_AUCTION": true,
-        "ELECTION_BOOTH_OPENS": true,
-        "ELECTION_OVER": true,
-        "FALLEN_STAR_CULT": true,
-        "FEAR_MONGERER": true,
-        "JACOBS_CONTEST": true,
-        "JERRYS_WORKSHOP": true,
-        "NEW_YEAR_CELEBRATION": true,
-        "SEASON_OF_JERRY": true,
-        "SPOOKY_FESTIVAL": true,
-        "TRAVELING_ZOO": true,
-        "HOPPITY_HUNT": true
+            "skyblockLevel": -1
+          }
+        },
+        "skyblockEventsNotifications": {
+          "enabled": true,
+          "notifiers": {
+            "BANK_INTEREST": true,
+            "DARK_AUCTION": true,
+            "ELECTION_BOOTH_OPENS": true,
+            "ELECTION_OVER": true,
+            "FALLEN_STAR_CULT": true,
+            "FEAR_MONGERER": true,
+            "JACOBS_CONTEST": true,
+            "JERRYS_WORKSHOP": true,
+            "NEW_YEAR_CELEBRATION": true,
+            "SEASON_OF_JERRY": true,
+            "SPOOKY_FESTIVAL": true,
+            "TRAVELING_ZOO": true,
+            "HOPPITY_HUNT": true
+          },
+          "customTime": {
+            "2": ["BANK_INTEREST", "DARK_AUCTION", "JACOBS_CONTEST"]
+          }
+        },
+        "hypixelUpdates": {
+          "enabled": true,
+          "hypixelNews": true,
+          "statusUpdates": true,
+          "skyblockVersion": true,
+          "alphaPlayerCountTracker": true
+        }
       },
-      "customTime": {
-        "2": ["BANK_INTEREST", "DARK_AUCTION", "JACOBS_CONTEST"]
+      "discord": {
+        "bot": {
+          "token": "DISCORD_BOT_TOKEN",
+          "applicationId": "DISCORD_APPLICATION_ID",
+          "serverID": "DISCORD_SERVER_ID"
+        },
+        "channels": {
+          "guildChatChannel": "GUILD_CHAT_CHANNEL_ID",
+          "officerChannel": "OFFICER_CHANNEL_ID",
+          "loggingChannel": "LOGGING_CHANNEL_ID",
+          "debugMode": true,
+          "debugChannel": "DEBUG_CHANNEL_ID",
+          "debugChannelMessageMode": "text",
+          "allowedBots": ["BOT_USER_ID"]
+        },
+        "commands": {
+          "checkPerms": true,
+          "commandRole": "COMMAND_ROLE_ID",
+          "blacklistRoles": ["BLACKLIST_ROLE_ID"],
+          "users": ["486155512568741900"]
+        },
+        "other": {
+          "messageMode": "bot",
+          "messageFormat": "{chatType} > {skin} {rank} {username} {guildRank}§f: {message}",
+          "stripEmojisFromUsernames": true,
+          "filterMessages": true,
+          "filterWords": ["dox", "doxx", "doxed", "doxxed", "doxing", "doxxing", "doxes", "doxxes"],
+          "joinMessage": true,
+          "autoLimbo": false
+        }
+      },
+      "web": {
+        "enabled": false,
+        "port": 1439,
+        "token": "WEBSOCKET_TOKEN"
       }
-    },
-    "hypixelUpdates": {
-      "enabled": true,
-      "hypixelNews": true,
-      "statusUpdates": true,
-      "skyblockVersion": true,
-      "alphaPlayerCountTracker": true
     }
-  },
-  "discord": {
-    "bot": {
-      "token": "DISCORD_BOT_TOKEN",
-      "serverID": "DISCORD_SERVER_ID"
-    },
-    "channels": {
-      "guildChatChannel": "GUILD_CHAT_CHANNEL_ID",
-      "officerChannel": "OFFICER_CHANNEL_ID",
-      "loggingChannel": "LOGGING_CHANNEL_ID",
-      "debugMode": true,
-      "debugChannel": "DEBUG_CHANNEL_ID",
-      "debugChannelMessageMode": "text",
-      "allowedBots": ["BOT_USER_ID"]
-    },
-    "commands": {
-      "checkPerms": true,
-      "commandRole": "COMMAND_ROLE_ID",
-      "blacklistRoles": ["BLACKLIST_ROLE_ID"],
-      "users": ["486155512568741900"]
-    },
-    "other": {
-      "messageMode": "bot",
-      "messageFormat": "{chatType} > {skin} {rank} {username} {guildRank}§f: {message}",
-      "stripEmojisFromUsernames": true,
-      "filterMessages": true,
-      "filterWords": ["dox", "doxx", "doxed", "doxxed", "doxing", "doxxing", "doxes", "doxxes"],
-      "joinMessage": true,
-      "autoLimbo": false
-    }
-  },
-  "web": {
-    "enabled": false,
-    "port": 1439,
-    "token": "WEBSOCKET_TOKEN"
-  },
+  ],
   "verification": {
     "enabled": false,
     "nickname": "{username}",

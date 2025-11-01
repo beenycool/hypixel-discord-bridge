@@ -5,15 +5,19 @@ const messageToImage = require("../contracts/messageToImage.js");
 const MessageHandler = require("./handlers/MessageHandler.js");
 const StateHandler = require("./handlers/StateHandler.js");
 const CommandHandler = require("./CommandHandler.js");
-const config = require("../../config.json");
 const fs = require("fs");
 const { ErrorEmbed } = require("../contracts/embedHandler.js");
 
 class DiscordManager extends CommunicationBridge {
-  constructor(app) {
+  constructor(bridge) {
     super();
 
-    this.app = app;
+    this.context = bridge;
+    this.app = bridge.app;
+    this.config = bridge.config;
+    this.discordConfig = this.config.discord;
+    this.minecraftConfig = this.config.minecraft;
+    this.webConfig = this.config.web;
 
     this.stateHandler = new StateHandler(this);
     this.messageHandler = new MessageHandler(this);
@@ -21,35 +25,52 @@ class DiscordManager extends CommunicationBridge {
   }
 
   connect() {
-    global.client = new Client({
+    this.client = new Client({
       intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers]
     });
 
-    this.client = client;
+    this.client.bridge = this.context;
+    this.context.client = this.client;
+    globalThis.clients ??= new Map();
+    globalThis.clients.set(this.context.id, this.client);
+    if (!globalThis.client) {
+      globalThis.client = this.client;
+    }
 
     this.client.on("ready", () => this.stateHandler.onReady());
     this.client.on("messageCreate", (message) => this.messageHandler.onMessage(message));
 
-    this.client.login(config.discord.bot.token).catch((error) => {
+    this.client.login(this.discordConfig.bot.token).catch((error) => {
       console.error(error);
     });
 
-    client.commands = new Collection();
+    this.client.commands = new Collection();
     const commandFiles = fs.readdirSync("src/discord/commands").filter((file) => file.endsWith(".js"));
 
     for (const file of commandFiles) {
       const command = require(`./commands/${file}`);
-      if (command.verificationCommand === true && config.verification.enabled === false) {
+      const verificationConfig = this.config.verification ?? this.app.config.verification;
+      if (command.verificationCommand === true && verificationConfig?.enabled === false) {
         continue;
       }
 
-      client.commands.set(command.name, command);
+      const inactivityConfig = verificationConfig?.inactivity ?? this.app.config.verification?.inactivity;
+      if (command.inactivityCommand === true && inactivityConfig?.enabled === false) {
+        continue;
+      }
+
+      const statsChannelsConfig = this.config.statsChannels ?? this.app.config.statsChannels;
+      if (command.channelsCommand === true && statsChannelsConfig?.enabled === false) {
+        continue;
+      }
+
+      this.client.commands.set(command.name, command);
     }
 
     const eventFiles = fs.readdirSync("src/discord/events").filter((file) => file.endsWith(".js"));
     for (const file of eventFiles) {
       const event = require(`./events/${file}`);
-      event.once ? client.once(event.name, (...args) => event.execute(...args)) : client.on(event.name, (...args) => event.execute(...args));
+      event.once ? this.client.once(event.name, (...args) => event.execute(...args)) : this.client.on(event.name, (...args) => event.execute(...args));
     }
 
     process.on("SIGINT", async () => {
@@ -59,24 +80,27 @@ class DiscordManager extends CommunicationBridge {
     });
   }
 
-  async getWebhook(discord, type) {
+  async getWebhook(type) {
     const channel = await this.stateHandler.getChannel(type);
+    if (!channel) {
+      return undefined;
+    }
     try {
       const webhooks = await channel.fetchWebhooks();
 
       if (webhooks.size === 0) {
-        channel.createWebhook({
+        await channel.createWebhook({
           name: "Hypixel Chat Bridge",
           avatar: "https://imgur.com/tgwQJTX.png"
         });
 
-        await this.getWebhook(discord, type);
+        return this.getWebhook(type);
       }
 
       return webhooks.first();
     } catch (error) {
       console.log(error);
-      channel.send({
+      await channel.send({
         embeds: [new ErrorEmbed("An error occurred while trying to fetch the webhooks. Please make sure the bot has the `MANAGE_WEBHOOKS` permission.")]
       });
     }
@@ -87,19 +111,24 @@ class DiscordManager extends CommunicationBridge {
       return;
     }
 
-    const mode = chat === "debugChannel" ? config.discord.channels.debugChannelMessageMode.toLowerCase() : config.discord.other.messageMode.toLowerCase();
+    const mode = chat === "debugChannel" ? this.discordConfig.channels.debugChannelMessageMode.toLowerCase() : this.discordConfig.other.messageMode.toLowerCase();
     message = ["text"].includes(mode) ? fullMessage : message;
     if (message !== undefined && chat !== "debugChannel") {
       console.broadcast(`${username} [${guildRank.replace(/§[0-9a-fk-or]/g, "").replace(/^\[|\]$/g, "")}]: ${message}`, `Discord`);
     }
 
     if (mode === "minecraft") {
-      message = replaceVariables(config.discord.other.messageFormat, { chatType, username, rank, guildRank, message });
+      message = replaceVariables(this.discordConfig.other.messageFormat, { chatType, username, rank, guildRank, message });
     }
 
-    const channel = await this.stateHandler.getChannel(chat || "Guild");
-    if (channel === undefined) {
-      console.error(`Channel ${chat.replace(/§[0-9a-fk-or]/g, "").trim()} not found!`);
+    const target = chat ?? "Guild";
+    const channel = await this.stateHandler.getChannel(target);
+    if (!channel) {
+      console.error(
+        `Channel ${String(target)
+          .replace(/§[0-9a-fk-or]/g, "")
+          .trim()} not found!`
+      );
       return;
     }
 
@@ -136,12 +165,12 @@ class DiscordManager extends CommunicationBridge {
           return;
         }
 
-        this.app.discord.webhook = await this.getWebhook(this.app.discord, chatType);
-        if (this.app.discord.webhook === undefined) {
+        this.webhook = await this.getWebhook(chat ?? "Guild");
+        if (this.webhook === undefined) {
           return;
         }
 
-        this.app.discord.webhook.send({
+        this.webhook.send({
           content: message,
           username: username,
           avatarURL: `https://www.mc-heads.net/avatar/${username}`
@@ -186,12 +215,18 @@ class DiscordManager extends CommunicationBridge {
   async onBroadcastCleanEmbed({ message, color, channel }) {
     console.broadcast(message, "Event");
 
-    channel = await this.stateHandler.getChannel(channel);
-    if (channel === undefined) {
-      console.log(`Channel ${channel.replace(/§[0-9a-fk-or]/g, "").trim()} not found!`);
+    const target = channel ?? "Guild";
+    const resolvedChannel = await this.stateHandler.getChannel(target);
+    if (!resolvedChannel) {
+      console.log(
+        `Channel ${String(target)
+          .replace(/§[0-9a-fk-or]/g, "")
+          .trim()} not found!`
+      );
+      return;
     }
 
-    channel.send({
+    resolvedChannel.send({
       embeds: [
         {
           color: color,
@@ -204,13 +239,18 @@ class DiscordManager extends CommunicationBridge {
   async onBroadcastHeadedEmbed({ message, title, icon, color, channel }) {
     console.broadcast(message, "Event");
 
-    channel = await this.stateHandler.getChannel(channel);
-    if (channel === undefined) {
-      console.log(`Channel ${channel.replace(/§[0-9a-fk-or]/g, "").trim()} not found!`);
+    const target = channel ?? "Guild";
+    const resolvedChannel = await this.stateHandler.getChannel(target);
+    if (!resolvedChannel) {
+      console.log(
+        `Channel ${String(target)
+          .replace(/§[0-9a-fk-or]/g, "")
+          .trim()} not found!`
+      );
       return;
     }
 
-    channel.send({
+    resolvedChannel.send({
       embeds: [
         {
           color: color,
@@ -227,15 +267,20 @@ class DiscordManager extends CommunicationBridge {
   async onPlayerToggle({ fullMessage, username, message, color, channel }) {
     console.broadcast(message, "Event");
 
-    channel = await this.stateHandler.getChannel(channel);
-    if (channel === undefined) {
-      console.log(`Channel ${channel.replace(/§[0-9a-fk-or]/g, "").trim()} not found!`);
+    const target = channel ?? "Guild";
+    const resolvedChannel = await this.stateHandler.getChannel(target);
+    if (!resolvedChannel) {
+      console.log(
+        `Channel ${String(target)
+          .replace(/§[0-9a-fk-or]/g, "")
+          .trim()} not found!`
+      );
       return;
     }
 
-    switch (config.discord.other.messageMode.toLowerCase()) {
+    switch (this.discordConfig.other.messageMode.toLowerCase()) {
       case "bot":
-        channel.send({
+        resolvedChannel.send({
           embeds: [
             {
               color: color,
@@ -254,12 +299,12 @@ class DiscordManager extends CommunicationBridge {
           return;
         }
 
-        this.app.discord.webhook = await this.getWebhook(this.app.discord, "Guild");
-        if (this.app.discord.webhook === undefined) {
+        this.webhook = await this.getWebhook(target);
+        if (this.webhook === undefined) {
           return;
         }
 
-        this.app.discord.webhook.send({
+        this.webhook.send({
           username: username,
           avatarURL: `https://www.mc-heads.net/avatar/${username}`,
           embeds: [
@@ -272,7 +317,7 @@ class DiscordManager extends CommunicationBridge {
 
         break;
       case "minecraft":
-        await channel.send({
+        await resolvedChannel.send({
           files: [
             new AttachmentBuilder(await messageToImage(fullMessage), {
               name: `${username}.png`
@@ -300,6 +345,29 @@ class DiscordManager extends CommunicationBridge {
   cleanMessage(message) {
     if (message === undefined) {
       return "";
+    }
+
+    const format = [
+      {
+        regex: /<@&(\d{17,19})>/g,
+        replacer: (match, role) => `@${this.client.guilds.cache.get(this.discordConfig.bot.serverID)?.roles?.cache?.get(role)?.name ?? "Unknown Role"}`
+      },
+      {
+        regex: /<@!(\d{17,19})>/g,
+        replacer: (match, id) => `@${this.client.users.cache.get(id)?.tag ?? "Unknown User"}`
+      },
+      {
+        regex: /<@?(\d{17,19})>/g,
+        replacer: (match, id) => `@${this.client.users.cache.get(id)?.tag ?? "Unknown User"}`
+      },
+      {
+        regex: /<#(\d{17,19})>/g,
+        replacer: (match, id) => `#${this.client.channels.cache.get(id)?.name ?? "Unknown Channel"}`
+      }
+    ];
+
+    for (const formatElement of format) {
+      message = message.replace(formatElement.regex, formatElement.replacer);
     }
 
     return message

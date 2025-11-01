@@ -1,7 +1,8 @@
 const HypixelDiscordChatBridgeError = require("../../contracts/errorHandler.js");
-const hypixelRebornAPI = require("../../contracts/API/HypixelRebornAPI.js");
+const { getHypixelClient } = require("../../contracts/API/HypixelRebornAPI.js");
 const { Embed, SuccessEmbed } = require("../../contracts/embedHandler.js");
 const { getUsername } = require("../../contracts/API/mowojangAPI.js");
+const BridgeRegistry = require("../../BridgeRegistry.js");
 const { writeFileSync, readFileSync } = require("fs");
 
 module.exports = {
@@ -21,6 +22,17 @@ module.exports = {
   ],
 
   execute: async (interaction) => {
+    const bridge = BridgeRegistry.getBridgeByGuildId(interaction.guildId) ?? interaction.client?.bridge ?? BridgeRegistry.getDefaultBridge();
+    if (!bridge) {
+      throw new HypixelDiscordChatBridgeError("Unable to locate a bridge for this guild.");
+    }
+
+    const hypixel = getHypixelClient({ bridge });
+    const bot = bridge.minecraft?.bot ?? global.bot;
+    if (!bot) {
+      throw new HypixelDiscordChatBridgeError("Minecraft bot is not ready. Please try again later.");
+    }
+
     const amount = interaction.options.getInteger("amount");
     const linkedData = readFileSync("data/linked.json");
     if (!linkedData) {
@@ -46,7 +58,7 @@ module.exports = {
     let skippedString = "";
     let inactiveString = "";
     let membersAboveGexpString = "";
-    const { members } = await hypixelRebornAPI.getGuild("player", bot.username);
+    const { members } = await hypixel.getGuild("player", bot.username);
     const sorted = members.sort((a, b) => b.weeklyExperience - a.weeklyExperience);
     for (const member of sorted) {
       const position = members.indexOf(member) + 1;

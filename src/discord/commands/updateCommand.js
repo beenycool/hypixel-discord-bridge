@@ -3,7 +3,8 @@ const { getLatestProfile } = require("../../../API/functions/getLatestProfile.js
 const HypixelDiscordChatBridgeError = require("../../contracts/errorHandler.js");
 const { SuccessEmbed, ErrorEmbed } = require("../../contracts/embedHandler.js");
 const { getChocolateFactory } = require("../../../API/stats/chocolateFactory.js");
-const hypixelRebornAPI = require("../../contracts/API/HypixelRebornAPI.js");
+const { getHypixelClient } = require("../../contracts/API/HypixelRebornAPI.js");
+const BridgeRegistry = require("../../BridgeRegistry.js");
 const { getCrimsonIsle, getKuudra } = require("../../../API/stats/crimson.js");
 const { getSkillAverage } = require("../../../API/constants/skills.js");
 const { ProfileNetworthCalculator } = require("skyhelper-networth");
@@ -16,7 +17,8 @@ const config = require("../../../config.json");
 const fs = require("fs");
 const { getUsername } = require("../../contracts/API/mowojangAPI.js");
 
-async function updateRoles({ discordId, uuid }) {
+async function updateRoles({ discordId, uuid }, context) {
+  const { guild, hypixel, bot } = context;
   const member = await guild.members.fetch(discordId);
   if (!member) {
     return;
@@ -43,8 +45,8 @@ async function updateRoles({ discordId, uuid }) {
   }
 
   const [hypixelGuild, player, skyblock] = await Promise.all([
-    hypixelRebornAPI.getGuild("player", bot.username, { noCaching: true, noCacheCheck: true }),
-    hypixelRebornAPI.getPlayer(uuid),
+    hypixel.getGuild("player", bot.username, { noCaching: true, noCacheCheck: true }),
+    hypixel.getPlayer(uuid),
     getLatestProfile(uuid, { museum: true }).catch(() => ({ profile: null, profileData: null }))
   ]);
 
@@ -324,6 +326,19 @@ module.exports = {
 
   execute: async (interaction, extra = { discordId: null, hidden: false }) => {
     try {
+      const bridge = BridgeRegistry.getBridgeByGuildId(interaction.guildId) ?? interaction.client?.bridge ?? BridgeRegistry.getDefaultBridge();
+      if (!bridge) {
+        throw new HypixelDiscordChatBridgeError("Unable to locate a bridge for this guild.");
+      }
+
+      const hypixel = getHypixelClient({ bridge });
+      const bot = bridge.minecraft?.bot ?? global.bot;
+      const guild = bridge.discord?.stateHandler?.guild ?? global.guild;
+
+      if (!bot || !guild) {
+        throw new HypixelDiscordChatBridgeError("Bridge clients are not ready. Please try again later.");
+      }
+
       const linkedData = fs.readFileSync("data/linked.json");
       if (!linkedData) {
         throw new HypixelDiscordChatBridgeError("The linked data file does not exist. Please contact an administrator.");
@@ -340,7 +355,7 @@ module.exports = {
         throw new HypixelDiscordChatBridgeError("You are not linked to a Minecraft account.");
       }
 
-      await updateRoles({ discordId, uuid });
+      await updateRoles({ discordId, uuid }, { guild, hypixel, bot });
 
       if (!extra.hidden) {
         const updateRole = new SuccessEmbed(

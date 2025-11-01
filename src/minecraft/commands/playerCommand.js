@@ -1,6 +1,5 @@
 const { formatNumber, formatError } = require("../../contracts/helperFunctions.js");
 const minecraftCommand = require("../../contracts/minecraftCommand.js");
-const hypixel = require("../../contracts/API/HypixelRebornAPI.js");
 
 class PlayerCommand extends minecraftCommand {
   /** @param {import("minecraft-protocol").Client} minecraft */
@@ -27,7 +26,7 @@ class PlayerCommand extends minecraftCommand {
     try {
       // CREDITS: by @Kathund (https://github.com/Kathund)
       player = this.getArgs(message)[0] || player;
-      const { achievementPoints, nickname, rank, karma, level, guild } = await hypixel.getPlayer(player, {
+      const { achievementPoints, nickname, rank, karma, level, guild } = await this.hypixel.getPlayer(player, {
         guild: true
       });
 

@@ -1,16 +1,21 @@
-const config = require("../../config.json");
 const WebSocket = require("ws");
 const http = require("http");
 
 class WebServer {
-  constructor(bot) {
-    this.bot = bot;
-    this.port = config.web.port;
+  constructor(bridge) {
+    this.bridge = bridge;
+    this.config = bridge.config.web ?? {};
+    this.port = this.config.port ?? 1439;
     this.start = Date.now();
   }
 
   async connect() {
-    if (config.web.enabled === false) return;
+    if (this.config.enabled !== true) return;
+
+    const bot = this.bridge.minecraft.bot;
+    if (!bot) {
+      return;
+    }
 
     const server = http.createServer();
     const wss = new WebSocket.Server({ noServer: true });
@@ -23,7 +28,7 @@ class WebServer {
           return;
         }
 
-        if (message.type === "message" && message.token === config.web.token && message.data) {
+        if (message.type === "message" && message.token === this.config.token && message.data) {
           console.web(`Received: ${JSON.stringify(message)}`);
           bot.chat(message.data);
         }

@@ -4,19 +4,27 @@ const StateHandler = require("./handlers/StateHandler.js");
 const ErrorHandler = require("./handlers/ErrorHandler.js");
 const ChatHandler = require("./handlers/ChatHandler.js");
 const CommandHandler = require("./CommandHandler.js");
-const config = require("../../config.json");
 const mineflayer = require("mineflayer");
 const Filter = require("bad-words");
-
-const filter = new Filter();
-const fileredWords = config.discord.other.filterWords ?? "";
-filter.addWords(...fileredWords);
+const { getHypixelClientForConfig } = require("../contracts/API/HypixelRebornAPI.js");
 
 class MinecraftManager extends CommunicationBridge {
-  constructor(app) {
+  constructor(bridge) {
     super();
 
-    this.app = app;
+    this.context = bridge;
+    this.app = bridge.app;
+    this.config = bridge.config;
+    this.minecraftConfig = this.config.minecraft;
+    this.discordConfig = this.config.discord;
+    this.webConfig = this.config.web;
+    this.hypixel = getHypixelClientForConfig(this.config);
+
+    this.filter = new Filter();
+    const filteredWords = this.discordConfig.other?.filterWords ?? [];
+    if (Array.isArray(filteredWords) && filteredWords.length > 0) {
+      this.filter.addWords(...filteredWords);
+    }
 
     this.stateHandler = new StateHandler(this);
     this.errorHandler = new ErrorHandler(this);
@@ -24,8 +32,14 @@ class MinecraftManager extends CommunicationBridge {
   }
 
   connect() {
-    global.bot = this.createBotConnection();
-    this.bot = bot;
+    this.bot = this.createBotConnection();
+    this.context.bot = this.bot;
+    this.context.hypixel = this.hypixel;
+    globalThis.bots ??= new Map();
+    globalThis.bots.set(this.context.id, this.bot);
+    if (!globalThis.bot) {
+      globalThis.bot = this.bot;
+    }
 
     this.errorHandler.registerEvents(this.bot);
     this.stateHandler.registerEvents(this.bot);
@@ -47,7 +61,7 @@ class MinecraftManager extends CommunicationBridge {
       version: "1.8.9",
       viewDistance: "tiny",
       chatLengthLimit: 256,
-      profilesFolder: "./auth-cache"
+      profilesFolder: `./auth-cache/${this.context.id}`
     });
   }
 
@@ -57,30 +71,30 @@ class MinecraftManager extends CommunicationBridge {
       return;
     }
 
-    if (channel === config.discord.channels.debugChannel && config.discord.channels.debugMode === true) {
+    if (channel === this.discordConfig.channels.debugChannel && this.discordConfig.channels.debugMode === true) {
       return this.bot.chat(message);
     }
 
-    if (config.discord.other.filterMessages) {
+    if (this.discordConfig.other?.filterMessages) {
       try {
-        message = filter.clean(message);
-        username = filter.clean(username);
+        message = this.filter.clean(message);
+        username = this.filter.clean(username);
       } catch (error) {
         // Do nothing
       }
     }
 
-    if (config.discord.other.stripEmojisFromUsernames) {
+    if (this.discordConfig.other?.stripEmojisFromUsernames) {
       try {
-        username = username.replace(/:[\w\-_]+:/g, '');
+        username = username.replace(/:[\w\-_]+:/g, "");
       } catch (error) {
         // Do nothing
       }
     }
 
-    message = replaceVariables(config.minecraft.bot.messageFormat, { username, message });
+    message = replaceVariables(this.minecraftConfig.bot.messageFormat, { username, message });
 
-    const chat = channel === config.discord.channels.officerChannel ? "/oc" : "/gc";
+    const chat = channel === this.discordConfig.channels.officerChannel ? "/oc" : "/gc";
 
     if (replyingTo) {
       message = message.replace(username, `${username} replying to ${replyingTo}`);
@@ -91,22 +105,23 @@ class MinecraftManager extends CommunicationBridge {
       receivedMessage = receivedMessage.toString();
 
       if (receivedMessage.trim().includes(message.trim()) && (this.chatHandler.isGuildMessage(receivedMessage) || this.chatHandler.isOfficerMessage(receivedMessage))) {
-        bot.removeListener("message", messageListener);
+        this.bot.removeListener("message", messageListener);
         successfullySent = true;
       }
     };
 
-    bot.on("message", messageListener);
+    this.bot.on("message", messageListener);
     this.bot.chat(`${chat} ${message}`);
 
+    const ackMs = this.discordConfig.other?.ackTimeoutMs ?? 1000;
     setTimeout(() => {
-      bot.removeListener("message", messageListener);
+      this.bot.removeListener("message", messageListener);
       if (successfullySent === true) {
         return;
       }
 
       discord.react("❌");
-    }, 500);
+    }, ackMs);
   }
 }
 

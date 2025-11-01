@@ -98,7 +98,7 @@ class AuctionHouseCommand extends minecraftCommand {
           return;
         }
 
-        await uploadImage(renderedItem);
+        await uploadImage(renderedItem, this.minecraft.context.id);
       }
 
       this.send(`${player}'s Active Auctions: Check Discord Bridge for image. (Hypixel banned Imgur links from the chat)`);

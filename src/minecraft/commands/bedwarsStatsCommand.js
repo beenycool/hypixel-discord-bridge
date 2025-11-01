@@ -1,6 +1,5 @@
 const { formatNumber, formatError, titleCase } = require("../../contracts/helperFunctions.js");
 const minecraftCommand = require("../../contracts/minecraftCommand.js");
-const hypixel = require("../../contracts/API/HypixelRebornAPI.js");
 
 class BedwarsCommand extends minecraftCommand {
   /** @param {import("minecraft-protocol").Client} minecraft */
@@ -32,7 +31,7 @@ class BedwarsCommand extends minecraftCommand {
       const mode = modes.includes(msg[0]) ? msg[0] : "overall";
       player = modes.includes(msg[0]) ? (msg[1] ? msg[1] : player) : msg[0] || player;
 
-      const hypixelPlayer = await hypixel.getPlayer(player);
+      const hypixelPlayer = await this.hypixel.getPlayer(player);
       if (hypixelPlayer === undefined) {
         return this.send(`Couldn't find player ${player}.`);
       }

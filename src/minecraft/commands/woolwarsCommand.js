@@ -1,6 +1,5 @@
 const minecraftCommand = require("../../contracts/minecraftCommand.js");
 const { formatNumber } = require("../../contracts/helperFunctions.js");
-const hypixel = require("../../contracts/API/HypixelRebornAPI.js");
 
 class WoolwarsCommand extends minecraftCommand {
   /** @param {import("minecraft-protocol").Client} minecraft */
@@ -27,7 +26,7 @@ class WoolwarsCommand extends minecraftCommand {
     try {
       player = this.getArgs(message)[0] || player;
 
-      const hypixelPlayer = await hypixel.getPlayer(player);
+      const hypixelPlayer = await this.hypixel.getPlayer(player);
       if (hypixelPlayer.stats?.woolwars === undefined) {
         return this.send(`${player} has never played WoolWars.`);
       }

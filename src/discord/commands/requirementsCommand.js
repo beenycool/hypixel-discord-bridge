@@ -1,11 +1,12 @@
 const { getLatestProfile } = require("../../../API/functions/getLatestProfile.js");
 const HypixelDiscordChatBridgeError = require("../../contracts/errorHandler.js");
-const hypixel = require("../../contracts/API/HypixelRebornAPI.js");
+const { getHypixelClient } = require("../../contracts/API/HypixelRebornAPI.js");
 const { getUUID } = require("../../contracts/API/mowojangAPI.js");
 const { Embed } = require("../../contracts/embedHandler.js");
 const config = require("../../../config.json");
 
-async function checkRequirements(uuid) {
+async function checkRequirements(uuid, options = {}) {
+  const hypixel = getHypixelClient(options);
   const [player, profile] = await Promise.all([hypixel.getPlayer(uuid), getLatestProfile(uuid)]);
   let meetRequirements = false;
 
@@ -126,7 +127,7 @@ module.exports = {
   execute: async (interaction) => {
     const name = interaction.options.getString("username") || interaction?.member?.nickname || null;
     if (name === null) throw new HypixelDiscordChatBridgeError("Please input a username");
-    const playerInfo = await checkRequirements(await getUUID(name));
+    const playerInfo = await checkRequirements(await getUUID(name), { guildId: interaction.guildId });
     const embed = generateEmbed(playerInfo);
     await interaction.followUp({ embeds: [embed] });
   }

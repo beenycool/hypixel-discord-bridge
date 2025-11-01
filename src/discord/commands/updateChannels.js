@@ -1,6 +1,7 @@
-const hypixelRebornAPI = require("../../contracts/API/HypixelRebornAPI.js");
+const { getHypixelClient } = require("../../contracts/API/HypixelRebornAPI.js");
 const { replaceVariables } = require("../../contracts/helperFunctions.js");
 const { SuccessEmbed } = require("../../contracts/embedHandler.js");
+const BridgeRegistry = require("../../BridgeRegistry.js");
 const config = require("../../../config.json");
 
 module.exports = {
@@ -11,7 +12,20 @@ module.exports = {
   requiresBot: true,
 
   execute: async (interaction, extra = {}) => {
-    const hypixelGuild = await hypixelRebornAPI.getGuild("player", bot.username);
+    const bridge = BridgeRegistry.getBridgeByGuildId(interaction.guildId) ?? interaction.client?.bridge ?? BridgeRegistry.getDefaultBridge();
+    if (!bridge) {
+      throw new Error("Unable to locate a bridge for this guild.");
+    }
+
+    const hypixel = getHypixelClient({ bridge });
+    const bot = bridge.minecraft?.bot ?? global.bot;
+    const guild = bridge.discord?.stateHandler?.guild ?? global.guild;
+
+    if (!bot || !guild) {
+      throw new Error("Bridge clients are not ready. Please try again later.");
+    }
+
+    const hypixelGuild = await hypixel.getGuild("player", bot.username);
     const [channels, roles] = await Promise.all([guild.channels.fetch(), guild.roles.fetch()]);
 
     const stats = {
