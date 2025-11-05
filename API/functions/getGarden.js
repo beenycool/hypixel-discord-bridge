@@ -1,9 +1,11 @@
 /* eslint-disable no-throw-literal */
-const config = require("../../config.json");
+const config = require("../../src/Configuration.js");
 // @ts-ignore
 const { get } = require("axios");
 
-const cache = new Map();
+const { createCache } = require("../utils/cache.js");
+
+const cache = createCache({ maxSize: 128 });
 
 /**
  * Returns the garden of a profile
@@ -11,12 +13,9 @@ const cache = new Map();
  * @returns {Promise<{ garden: import("../../types/garden").Garden}>}
  */
 async function getGarden(profileID) {
-  if (cache.has(profileID)) {
-    const data = cache.get(profileID);
-
-    if (data.last_save + 300000 > Date.now()) {
-      return data.data;
-    }
+  const cached = cache.get(profileID);
+  if (cached) {
+    return cached;
   }
 
   const { data } = await get(`https://api.hypixel.net/v2/skyblock/garden?key=${config.minecraft.API.hypixelAPIkey}&profile=${profileID}`);
@@ -30,12 +29,10 @@ async function getGarden(profileID) {
     // throw "Profile doesn't have a garden.";
   }
 
-  cache.set(profileID, {
-    data: gardenData,
-    last_save: Date.now()
-  });
+  const result = { garden: gardenData };
+  cache.set(profileID, result);
 
-  return { garden: gardenData };
+  return result;
 }
 
 module.exports = { getGarden };

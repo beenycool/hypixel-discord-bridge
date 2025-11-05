@@ -2,7 +2,7 @@ const HypixelDiscordChatBridgeError = require("../../contracts/errorHandler.js")
 const { Embed, SuccessEmbed } = require("../../contracts/embedHandler.js");
 const { getUsername } = require("../../contracts/API/mowojangAPI.js");
 const { writeFileSync, readFileSync } = require("fs");
-const config = require("../../../config.json");
+const config = require("../../Configuration.js");
 const ms = require("ms");
 
 function removeExpiredInactivity() {

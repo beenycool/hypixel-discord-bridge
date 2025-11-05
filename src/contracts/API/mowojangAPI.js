@@ -1,8 +1,10 @@
 // @ts-ignore
 const { get } = require("axios");
+const { createCache } = require("../../../API/utils/cache.js");
 
-const uuidCache = new Map();
-const usernameCache = new Map();
+const HALF_DAY_MS = 12 * 60 * 60 * 1000;
+const uuidCache = createCache({ maxSize: 1024, ttlMs: HALF_DAY_MS });
+const usernameCache = createCache({ maxSize: 1024, ttlMs: HALF_DAY_MS });
 
 /**
  * Get UUID from username
@@ -11,12 +13,9 @@ const usernameCache = new Map();
  */
 async function getUUID(username) {
   try {
-    if (uuidCache.has(username)) {
-      const data = uuidCache.get(username);
-
-      if (data.last_save + 43200000 > Date.now()) {
-        return data.id;
-      }
+    const cached = uuidCache.get(username);
+    if (cached) {
+      return cached;
     }
 
     const { data } = await get(`https://mowojang.matdoes.dev/${username}`);
@@ -25,10 +24,7 @@ async function getUUID(username) {
       throw data.errorMessage ?? "Invalid username.";
     }
 
-    uuidCache.set(username, {
-      last_save: Date.now(),
-      id: data.id
-    });
+    uuidCache.set(username, data.id);
 
     return data.id;
   } catch (error) {
@@ -46,12 +42,9 @@ async function getUUID(username) {
  */
 async function getUsername(uuid) {
   try {
-    if (usernameCache.has(uuid)) {
-      const data = usernameCache.get(uuid);
-
-      if (data.last_save + 43200000 > Date.now()) {
-        return data.username;
-      }
+    const cached = usernameCache.get(uuid);
+    if (cached) {
+      return cached;
     }
 
     const { data } = await get(`https://mowojang.matdoes.dev/${uuid}`);
@@ -59,12 +52,7 @@ async function getUsername(uuid) {
       throw data.errorMessage ?? "Invalid UUID.";
     }
 
-    const cache = {
-      last_save: Date.now(),
-      username: data.name
-    };
-
-    usernameCache.set(uuid, cache);
+    usernameCache.set(uuid, data.name);
 
     return data.name;
   } catch (error) {

@@ -38,8 +38,8 @@ class Application {
   }
 
   async register() {
-    delete require.cache[require.resolve("../config.json")];
-    this.config = require("../config.json");
+    delete require.cache[require.resolve("./Configuration.js")];
+    this.config = require("./Configuration.js");
 
     if (Array.isArray(this.bridges)) {
       this.bridges.forEach((bridge) => {

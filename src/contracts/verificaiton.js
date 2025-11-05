@@ -1,5 +1,5 @@
 const HypixelDiscordChatBridgeError = require("./errorHandler.js");
-const config = require("../../config.json");
+const config = require("../Configuration.js");
 const { readFileSync } = require("fs");
 
 function isGuildMember(interaction) {

@@ -1,9 +1,11 @@
 /* eslint-disable no-throw-literal */
-const config = require("../../config.json");
+const config = require("../../src/Configuration.js");
 // @ts-ignore
 const { get } = require("axios");
 
-const cache = new Map();
+const { createCache } = require("../utils/cache.js");
+
+const cache = createCache({ maxSize: 128 });
 
 /**
  *
@@ -12,12 +14,10 @@ const cache = new Map();
  * @returns {Promise<object>}
  */
 async function getMuseum(profileID, uuid) {
-  if (cache.has(profileID)) {
-    const data = cache.get(profileID);
-
-    if (data.last_save + 300000 > Date.now()) {
-      return data.data;
-    }
+  const cacheKey = `${profileID}:${uuid}`;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return cached;
   }
 
   const { data } = await get(`https://api.hypixel.net/v2/skyblock/museum?key=${config.minecraft.API.hypixelAPIkey}&profile=${profileID}`);
@@ -33,18 +33,13 @@ async function getMuseum(profileID, uuid) {
     // throw "Player doesn't have a museum.";
   }
 
-  cache.set(profileID, {
-    data: {
-      museum: data.members ? data.members[uuid] : null,
-      museumData: data.members ? data.members : null
-    },
-    last_save: Date.now()
-  });
-
-  return {
-    museum: data.members ? data.members[uuid] : null,
-    museumData: data.members ? data.members : null
+  const result = {
+    museum: data.members ? data.members[uuid] ?? null : null
   };
+
+  cache.set(cacheKey, result);
+
+  return result;
 }
 
 module.exports = { getMuseum };
