@@ -5,7 +5,7 @@ const { formatError } = require("../../contracts/helperFunctions.js");
 const updateRolesCommand = require("./updateCommand.js");
 const BridgeRegistry = require("../../BridgeRegistry.js");
 const { writeFileSync, readFileSync } = require("fs");
-const config = require("../../../config.json");
+const config = require("../../Configuration.js");
 
 module.exports = {
   name: "verify",

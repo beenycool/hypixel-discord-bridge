@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 const customLevels = { discord: 0, minecraft: 1, web: 2, warn: 3, error: 4, broadcast: 5, max: 6 };
 const { createLogger, format, transports } = require("winston");
-const config = require("../config.json");
+const config = require("./Configuration.js");
 const chalk = require("chalk");
 const discordTransport = new transports.File({ level: "discord", filename: "./logs/discord.log" });
 const minecraftTransport = new transports.File({ level: "minecraft", filename: "./logs/minecraft.log" });
@@ -143,12 +143,23 @@ function getCurrentTime() {
   });
 }
 
+function getConsoleWidth(minWidth = 0) {
+  const width = Number(process.stdout?.columns);
+
+  if (Number.isFinite(width) && width > 0) {
+    return Math.max(width, minWidth);
+  }
+
+  return Math.max(80, minWidth);
+}
+
 async function configUpdateMessage(message) {
-  const columns = process.stdout.columns;
   const warning = "IMPORTANT!";
   const message2 = "Please update your Configuration file!";
-  const padding = " ".repeat(Math.floor((columns - warning.length + 1) / 2));
-  const padding2 = " ".repeat(Math.floor((columns - message2.length + 1) / 2));
+  const minWidth = Math.max(warning.length, message2.length) + 4;
+  const columns = getConsoleWidth(minWidth);
+  const padding = " ".repeat(Math.max(0, Math.floor((columns - warning.length + 1) / 2)));
+  const padding2 = " ".repeat(Math.max(0, Math.floor((columns - message2.length + 1) / 2)));
 
   console.log(chalk.bgRed.black(" ".repeat(columns).repeat(3)));
   console.log(chalk.bgRed.black(padding + warning + padding));
@@ -161,11 +172,12 @@ async function configUpdateMessage(message) {
 }
 
 async function updateMessage() {
-  const columns = process.stdout.columns;
   const warning = "IMPORTANT!";
   const message2 = "Bot has been updated, please restart the bot to apply changes!";
-  const padding = " ".repeat(Math.floor((columns - warning.length + 1) / 2));
-  const padding2 = " ".repeat(Math.floor((columns - message2.length + 1) / 2));
+  const minWidth = Math.max(warning.length, message2.length) + 4;
+  const columns = getConsoleWidth(minWidth);
+  const padding = " ".repeat(Math.max(0, Math.floor((columns - warning.length + 1) / 2)));
+  const padding2 = " ".repeat(Math.max(0, Math.floor((columns - message2.length + 1) / 2)));
 
   console.log(chalk.bgRed.black(" ".repeat(columns).repeat(3)));
   console.log(chalk.bgRed.black(padding + warning + padding));

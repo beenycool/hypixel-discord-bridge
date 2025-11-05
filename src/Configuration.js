@@ -1,8 +1,19 @@
-const Logger = require("./Logger.js");
 const fs = require("fs");
+const path = require("path");
 
 const exampleConfig = JSON.parse(fs.readFileSync("config.example.json"));
-const config = JSON.parse(fs.readFileSync("config.json"));
+
+const configPath = path.resolve("config.json");
+let config = {};
+if (fs.existsSync(configPath)) {
+  config = JSON.parse(fs.readFileSync(configPath));
+}
+
+const pendingLogs = [];
+
+function logConfigUpdate(message) {
+  pendingLogs.push(message);
+}
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -23,7 +34,7 @@ function applyDefaults(target, defaults, path = []) {
 
     if (target[key] === undefined) {
       target[key] = clone(value);
-      Logger.configUpdateMessage(`${currentPath}: ${JSON.stringify(value)}`);
+      logConfigUpdate(`${currentPath}: ${JSON.stringify(value)}`);
       continue;
     }
 
@@ -69,12 +80,13 @@ function ensureBridgeArray(configuration, example) {
 
 ensureBridgeArray(config, exampleConfig);
 
+// eslint-disable-next-line no-unused-vars
 const { bridges: _unusedBridges, ...exampleRest } = exampleConfig;
 
 for (const [key, value] of Object.entries(exampleRest)) {
   if (config[key] === undefined) {
     config[key] = clone(value);
-    Logger.configUpdateMessage(`${key}: ${JSON.stringify(value)}`);
+    logConfigUpdate(`${key}: ${JSON.stringify(value)}`);
   }
 
   if (value !== null && typeof value === "object" && Array.isArray(value) === false) {
@@ -87,4 +99,25 @@ config.minecraft = clone(primaryBridge.minecraft ?? {});
 config.discord = clone(primaryBridge.discord ?? {});
 config.web = clone(primaryBridge.web ?? {});
 
-fs.writeFileSync("config.json", JSON.stringify(config, null, 2));
+if (process.env.HYPIXEL_API_KEY) {
+  config.minecraft ??= {};
+  config.minecraft.API ??= {};
+  config.minecraft.API.hypixelAPIkey = process.env.HYPIXEL_API_KEY;
+}
+
+if (configPath && fs.existsSync(configPath)) {
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+}
+
+module.exports = config;
+
+if (pendingLogs.length > 0 && process.env.NODE_ENV !== "test") {
+  try {
+    const Logger = require("./Logger.js");
+    pendingLogs.forEach((message) => Logger.configUpdateMessage(message));
+  } catch {
+    pendingLogs.forEach((message) => {
+      console.warn(`Configuration updated with default value for ${message}`);
+    });
+  }
+}
