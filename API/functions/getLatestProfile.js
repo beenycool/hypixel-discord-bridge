@@ -67,7 +67,7 @@ async function getLatestProfile(uuid, options = { museum: false, garden: false }
     }
 
     const profile = profileData.members[uuid];
-    if (profile === null) {
+    if (profile == null) {
       throw "Uh oh, this player is not in this Skyblock profile.";
     }
 
@@ -81,15 +81,11 @@ async function getLatestProfile(uuid, options = { museum: false, garden: false }
   const extras = [];
 
   if (needsMuseum && result?.profileData) {
-    extras.push(
-      getMuseum(result.profileData.profile_id, uuid).then((museumData) => ({ museum: museumData.museum }))
-    );
+    extras.push(getMuseum(result.profileData.profile_id, uuid).then((museumData) => ({ museum: museumData.museum })));
   }
 
   if (needsGarden && result?.profileData) {
-    extras.push(
-      getGarden(result.profileData.profile_id).then((gardenData) => gardenData)
-    );
+    extras.push(getGarden(result.profileData.profile_id).then((gardenData) => gardenData));
   }
 
   if (extras.length > 0 && result) {

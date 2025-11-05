@@ -29,7 +29,7 @@ async function getUUID(username) {
     return data.id;
   } catch (error) {
     // @ts-ignore
-    if (error.response.data === "Not found") throw "Invalid username.";
+    if (error.response?.data === "Not found") throw "Invalid username.";
     console.error(error);
     throw error;
   }
@@ -78,7 +78,7 @@ async function resolveUsernameOrUUID(username) {
     };
   } catch (error) {
     // @ts-ignore
-    if (error.response.data === "Not found") throw "Invalid Username Or UUID.";
+    if (error.response?.data === "Not found") throw "Invalid Username Or UUID.";
     console.error(error);
     throw error;
   }

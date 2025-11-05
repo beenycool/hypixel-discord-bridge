@@ -45,6 +45,10 @@ function createCache(options = {}) {
         return undefined;
       }
 
+      // For LRU behavior, move the accessed element to the end of the map.
+      store.delete(key);
+      store.set(key, entry);
+
       return entry.value;
     },
 

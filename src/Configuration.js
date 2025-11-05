@@ -80,6 +80,7 @@ function ensureBridgeArray(configuration, example) {
 
 ensureBridgeArray(config, exampleConfig);
 
+// eslint-disable-next-line no-unused-vars
 const { bridges: _unusedBridges, ...exampleRest } = exampleConfig;
 
 for (const [key, value] of Object.entries(exampleRest)) {
