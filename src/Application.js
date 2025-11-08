@@ -44,6 +44,16 @@ class Application {
     if (Array.isArray(this.bridges)) {
       this.bridges.forEach((bridge) => {
         try {
+          // Cleanup resources before unregistering
+          if (bridge.minecraft && typeof bridge.minecraft.cleanup === 'function') {
+            bridge.minecraft.cleanup();
+          }
+          if (bridge.discord && typeof bridge.discord.cleanup === 'function') {
+            bridge.discord.cleanup();
+          }
+          if (bridge.web && typeof bridge.web.cleanup === 'function') {
+            bridge.web.cleanup();
+          }
           BridgeRegistry.unregisterBridge(bridge);
         } catch (error) {
           console.warn("Failed to unregister bridge during reload:", error);

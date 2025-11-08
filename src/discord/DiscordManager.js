@@ -382,6 +382,33 @@ class DiscordManager extends CommunicationBridge {
   formatMessage(message, data) {
     return replaceVariables(message, data);
   }
+
+  cleanup() {
+    // Remove client from global registry
+    if (globalThis.clients) {
+      globalThis.clients.delete(this.context.id);
+      if (globalThis.client === this.client) {
+        delete globalThis.client;
+      }
+    }
+
+    // Remove guild from global registry
+    if (globalThis.guilds) {
+      globalThis.guilds.delete(this.context.id);
+      if (globalThis.guild === this.stateHandler?.guild) {
+        delete globalThis.guild;
+      }
+    }
+
+    // Destroy Discord client if connected
+    if (this.client) {
+      try {
+        this.client.destroy();
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    }
+  }
 }
 
 module.exports = DiscordManager;

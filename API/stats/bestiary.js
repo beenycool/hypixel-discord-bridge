@@ -8,12 +8,25 @@ const { getBestiaryConstants } = require("../constants/bestiary.js");
 
 /** @type {Partial<BestiaryConstants | null>} */
 let BESTIARY_CONSTANTS = {};
+let bestiaryInterval = null;
+
 async function updateConstants() {
   BESTIARY_CONSTANTS = await getBestiaryConstants();
 }
 
-setInterval(updateConstants, 1000 * 60 * 60 * 12);
+bestiaryInterval = setInterval(updateConstants, 1000 * 60 * 60 * 12);
 updateConstants();
+
+// Cleanup function to clear interval
+function cleanup() {
+  if (bestiaryInterval !== null) {
+    clearInterval(bestiaryInterval);
+    bestiaryInterval = null;
+  }
+}
+
+// Export cleanup function
+module.exports.cleanup = cleanup;
 
 /**
  * @param {import("../../types/profiles.js").Member['bestiary']} bestiary

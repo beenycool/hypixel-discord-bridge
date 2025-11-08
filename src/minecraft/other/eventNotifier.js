@@ -4,10 +4,12 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const config = require("../../Configuration.js");
 const axios = require("axios");
 
+let eventInterval = null;
+
 if (config.minecraft.skyblockEventsNotifications.enabled) {
   const { notifiers, customTime } = config.minecraft.skyblockEventsNotifications;
 
-  setInterval(async () => {
+  eventInterval = setInterval(async () => {
     try {
       const eventBOT = new minecraftCommand(bot);
       eventBOT.officer = false;
@@ -60,3 +62,14 @@ function getCustomTime(events, value) {
 
   return Object.keys(events).filter((key) => events[key].includes(value));
 }
+
+// Cleanup function to clear interval
+function cleanup() {
+  if (eventInterval !== null) {
+    clearInterval(eventInterval);
+    eventInterval = null;
+  }
+}
+
+// Export cleanup function for bridge cleanup
+module.exports.cleanup = cleanup;
