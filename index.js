@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
+"use strict";
+
 process.on("uncaughtException", (error) => console.log(error));
 const app = require("./src/Application.js");
-
-("use strict");
 
 app
   .register()

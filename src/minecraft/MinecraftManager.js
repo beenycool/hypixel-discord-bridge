@@ -101,11 +101,16 @@ class MinecraftManager extends CommunicationBridge {
     }
 
     let successfullySent = false;
+    let timeoutId = null;
     const messageListener = (receivedMessage) => {
       receivedMessage = receivedMessage.toString();
 
       if (receivedMessage.trim().includes(message.trim()) && (this.chatHandler.isGuildMessage(receivedMessage) || this.chatHandler.isOfficerMessage(receivedMessage))) {
         this.bot.removeListener("message", messageListener);
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         successfullySent = true;
       }
     };
@@ -114,14 +119,66 @@ class MinecraftManager extends CommunicationBridge {
     this.bot.chat(`${chat} ${message}`);
 
     const ackMs = this.discordConfig.other?.ackTimeoutMs ?? 1000;
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       this.bot.removeListener("message", messageListener);
+      timeoutId = null;
       if (successfullySent === true) {
         return;
       }
 
-      discord.react("❌");
+      if (discord && discord.react) {
+        discord.react("❌").catch(() => {
+          // Ignore reaction errors
+        });
+      }
     }, ackMs);
+  }
+
+  cleanup() {
+    // Cleanup intervals from notifiers
+    try {
+      const skyblockNotifier = require("./other/skyblockNotifier.js");
+      if (skyblockNotifier.cleanup) {
+        skyblockNotifier.cleanup();
+      }
+    } catch (error) {
+      // Ignore if module not loaded
+    }
+
+    try {
+      const eventNotifier = require("./other/eventNotifier.js");
+      if (eventNotifier.cleanup) {
+        eventNotifier.cleanup();
+      }
+    } catch (error) {
+      // Ignore if module not loaded
+    }
+
+    try {
+      const alphaPlayerCountTracker = require("./other/alphaPlayerCountTracker.js");
+      if (alphaPlayerCountTracker.cleanup) {
+        alphaPlayerCountTracker.cleanup();
+      }
+    } catch (error) {
+      // Ignore if module not loaded
+    }
+
+    // Remove bot from global registry
+    if (globalThis.bots) {
+      globalThis.bots.delete(this.context.id);
+      if (globalThis.bot === this.bot) {
+        delete globalThis.bot;
+      }
+    }
+
+    // Disconnect bot if connected
+    if (this.bot) {
+      try {
+        this.bot.end("cleanup");
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    }
   }
 }
 

@@ -4,34 +4,55 @@ const Rss = require("rss-parser");
 const axios = require("axios");
 const parser = new Rss();
 
+const intervals = [];
+const hypixelIncidents = {};
+const MAX_INCIDENTS = 100;
+const MAX_UPDATES = 500;
+
 if (config.minecraft.hypixelUpdates.enabled === true) {
   if (config.minecraft.hypixelUpdates.hypixelNews === true) {
-    setInterval(checkForHypixelUpdates, 10000);
+    intervals.push(setInterval(checkForHypixelUpdates, 10000));
   }
 
   if (config.minecraft.hypixelUpdates.statusUpdates === true) {
-    setInterval(checkForIncidents, 10000);
+    intervals.push(setInterval(checkForIncidents, 10000));
   }
 
   if (config.minecraft.hypixelUpdates.skyblockVersion === true) {
-    setInterval(checkForSkyblockVersion, 10000);
+    intervals.push(setInterval(checkForSkyblockVersion, 10000));
   }
 }
 
-const hypixelIncidents = {};
+// Cleanup function to clear intervals
+function cleanup() {
+  intervals.forEach(interval => clearInterval(interval));
+  intervals.length = 0;
+}
+
+// Export cleanup function for bridge cleanup
+module.exports.cleanup = cleanup;
 async function checkForIncidents() {
   try {
     const { items: status } = await parser.parseURL("https://status.hypixel.net/history.rss");
 
     const latestIcidents = status.filter((data) => new Date(data.pubDate).getTime() / 1000 + 43200 > Date.now() / 1000);
 
+    // Clean up old incidents to prevent memory leak
+    const incidentKeys = Object.keys(hypixelIncidents);
+    if (incidentKeys.length > MAX_INCIDENTS) {
+      const keysToDelete = incidentKeys.slice(0, incidentKeys.length - MAX_INCIDENTS);
+      keysToDelete.forEach(key => delete hypixelIncidents[key]);
+    }
+
     for (const incident of latestIcidents) {
       const { title, link } = incident;
 
       if (hypixelIncidents[title]?.notified !== true) {
         hypixelIncidents[title] = { notified: true };
-        bot.chat(`/gc [HYPIXEL STATUS] ${title} | ${link}`);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (bot !== undefined && bot._client?.chat !== undefined) {
+          bot.chat(`/gc [HYPIXEL STATUS] ${title} | ${link}`);
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
       }
 
       const updates = JSON.stringify(incident.contentSnippet)
@@ -42,7 +63,7 @@ async function checkForIncidents() {
         if (hypixelIncidents[title]?.updates?.includes(update) === true) continue;
 
         hypixelIncidents[title].updates ??= [];
-        if (bot !== undefined && bot._client.chat !== undefined) {
+        if (bot !== undefined && bot._client?.chat !== undefined) {
           hypixelIncidents[title].updates.push(update);
           bot.chat(`/gc [HYPIXEL STATUS UPDATE] ${title} | ${update}`);
           await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -62,6 +83,11 @@ async function checkForHypixelUpdates(firstTime = false) {
       parser.parseURL("https://hypixel.net/forums/skyblock-patch-notes.158/index.rss")
     ]);
 
+    // Clean up old updates to prevent memory leak
+    if (hypixelUpdates.length > MAX_UPDATES) {
+      hypixelUpdates.splice(0, hypixelUpdates.length - MAX_UPDATES);
+    }
+
     const latestFeed = news.concat(skyblockNews);
     for (const news of latestFeed) {
       const { title, link } = news;
@@ -69,7 +95,7 @@ async function checkForHypixelUpdates(firstTime = false) {
         continue;
       }
 
-      if (bot !== undefined && bot._client.chat !== undefined && firstTime === false) {
+      if (bot !== undefined && bot._client?.chat !== undefined && firstTime === false) {
         const response = await axios.get(link, {
           headers: {
             "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0"
@@ -100,6 +126,10 @@ checkForHypixelUpdates(true);
 let skyblockVersion;
 async function checkForSkyblockVersion() {
   try {
+    if (!bot || !bot.chat) {
+      return;
+    }
+
     const { data } = await axios.get("https://api.hypixel.net/v2/resources/skyblock/skills");
 
     if (skyblockVersion !== data.version) {
